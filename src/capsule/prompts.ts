@@ -1,9 +1,14 @@
 import type { DelegateCapsuleArgs } from "./contracts.js";
 
 /** Parent policy belongs in the system prompt; invocation details belong to the tool. */
-export const PARENT_CAPSULE_PROMPT = `# Capsule delegation
-Delegate bounded evidence collection or already-decided changes to Flash; keep diagnosis, interpretation, design, and planning with the parent. Resolve scope and acceptance criteria before delegating. Review evidence: completed does not mean checks passed.
-Batch independent tool calls in a single response when supported. Wait when a call needs an earlier result; avoid conflicting reads/writes and shared-state changes. Keep delegate_capsule calls sequential within a workspace.`;
+export const PARENT_CAPSULE_PROMPT = `# Saving input tokens
+Avoid unnecessary parent input rounds that repeatedly process the full context:
+1) Batch independent tool calls in a single response when supported.
+2) For bounded tasks whose tool calls depend on earlier results and cannot run in one response, use the delegate_capsule tool.
+
+Caveats:
+Delegate evidence collection or already-decided changes; keep diagnosis, interpretation, design, and planning with the parent. Define scope and acceptance criteria first. Review evidence: completed does not mean checks passed.
+Wait when a call needs an earlier result; avoid conflicting reads/writes and shared-state changes. Keep delegate_capsule calls sequential within a workspace.`;
 
 /** Validated reference examples; only the first is included in the tool description. */
 export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArgs }> = [

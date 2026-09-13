@@ -200,6 +200,18 @@ describe("parent/child tool separation", () => {
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
     expect(injected.systemPrompt).toContain("Batch independent tool calls in a single response");
+    expect(injected.systemPrompt).toContain("# Saving input tokens");
+    expect(injected.systemPrompt).toContain("Avoid unnecessary parent input rounds that repeatedly process the full context");
+    expect(injected.systemPrompt).toContain("tool calls depend on earlier results and cannot run in one response");
+    expect(injected.systemPrompt).toContain("use the delegate_capsule tool");
+    const caveats = PARENT_CAPSULE_PROMPT.split("\n\nCaveats:\n")[1];
+    expect(caveats).toContain("Delegate evidence collection or already-decided changes");
+    expect(caveats).toContain("keep diagnosis, interpretation, design, and planning with the parent");
+    expect(caveats).toContain("Define scope and acceptance criteria first");
+    expect(caveats).toContain("Review evidence: completed does not mean checks passed");
+    expect(caveats).toContain("Wait when a call needs an earlier result");
+    expect(caveats).toContain("avoid conflicting reads/writes and shared-state changes");
+    expect(caveats).toContain("Keep delegate_capsule calls sequential within a workspace");
     expect(injected.systemPrompt).toContain("Wait when a call needs an earlier result");
     expect(injected.systemPrompt).toContain("Keep delegate_capsule calls sequential within a workspace");
     expect(injected.systemPrompt).not.toContain(WORKER_CAPSULE_PROMPT);
