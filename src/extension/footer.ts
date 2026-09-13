@@ -22,6 +22,10 @@ function formatTokens(count: number): string {
 }
 
 function align(left: string, right: string, width: number): string {
+  if (!left) {
+    const shortened = truncateToWidth(right, width, "…");
+    return " ".repeat(Math.max(0, width - visibleWidth(shortened))) + shortened;
+  }
   left = truncateToWidth(left, width, "...");
   const room = width - visibleWidth(left) - 2;
   if (!right || room <= 0) return left;
@@ -33,12 +37,11 @@ function align(left: string, right: string, width: number): string {
 /** The same compact stats grammar as Pi's footer, with real worker values. */
 export function formatFlashFooterLine(telemetry: FlashTelemetry | undefined, width: number, theme: any, idleModel?: string, state = "idle"): string {
   if (!telemetry) {
-    const idle = theme.fg("dim", `Flash: ${state}`);
     const model = idleModel?.slice(idleModel.indexOf("/") + 1);
-    return model ? align(idle, theme.fg("dim", model), width) : truncateToWidth(idle, width, "...");
+    return align("", theme.fg("dim", `Flash: ${state}${model ? ` · ${model}` : ""}`), width);
   }
   const t = telemetry.tokens;
-  const parts = [`Flash: ${state}`, `↑${formatTokens(t.input)}`, `↓${formatTokens(t.output)}`];
+  const parts = [`↑${formatTokens(t.input)}`, `↓${formatTokens(t.output)}`];
   if (t.cacheRead) parts.push(`R${formatTokens(t.cacheRead)}`);
   if (t.cacheWrite) parts.push(`W${formatTokens(t.cacheWrite)}`);
   if ((t.cacheRead || t.cacheWrite) && telemetry.tokens.input + t.cacheRead + t.cacheWrite > 0) {
@@ -51,7 +54,7 @@ export function formatFlashFooterLine(telemetry: FlashTelemetry | undefined, wid
     parts.push(`${percent}/${formatTokens(context.contextWindow)}${telemetry.autoCompaction ? " (auto)" : ""}`);
   }
   const thinking = telemetry.thinkingLevel && telemetry.thinkingLevel !== "off" ? telemetry.thinkingLevel : "thinking off";
-  return align(theme.fg("dim", parts.join(" ")), theme.fg("dim", `${telemetry.model} • ${thinking}`), width);
+  return align(theme.fg("dim", parts.join(" ")), theme.fg("dim", `Flash: ${state} · ${telemetry.model} • ${thinking}`), width);
 }
 
 /** Use Pi's public footer for the parent, then append one independent Flash row. */

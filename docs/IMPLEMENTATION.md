@@ -45,6 +45,10 @@ the parent agent and orchestrator; the plugin never selects or switches it. Flas
 to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_FLASH_MODEL=provider/model-id`
 overrides it independently. `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and absolute
 project-contained `CAPSULE_STATE_DIR` retain their documented behavior.
+The extension-owned `capsuleFlashThinkingLevel` setting controls only Flash
+reasoning (`off`, `minimal`, `low`, `medium`, `high`, or `xhigh`). Global settings
+are the fallback when the project setting is absent; project settings win, and
+`CAPSULE_FLASH_THINKING_LEVEL` overrides both. Invalid values fail before setup.
 Authentication comes from normal Pi config.
 
 Run:

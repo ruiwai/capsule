@@ -1,10 +1,10 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { SettingsManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { isAbsolute } from "node:path";
 import { ScriptedService } from "../controller/scripted.js";
 import { object, text } from "../controller/scripted-contract.js";
 import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } from "../capsule/contracts.js";
-import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel } from "../capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "../capsule/backend.js";
 import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
@@ -93,13 +93,18 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           workerIdentity = undefined;
           const model = resolveConfiguredModel(ctx.modelRegistry, process.env.CAPSULE_FLASH_MODEL);
           const toolOverride = process.env.CAPSULE_FLASH_TOOLS?.split(",").map(x => x.trim()).filter(Boolean);
+          const settings = SettingsManager.create(ctx.cwd);
+          const projectSettings = settings.getProjectSettings() as Record<string, unknown>;
+          const globalSettings = settings.getGlobalSettings() as Record<string, unknown>;
+          const thinkingLevel = resolveConfiguredThinkingLevel(
+            { ...globalSettings, ...projectSettings }, process.env.CAPSULE_FLASH_THINKING_LEVEL);
           workerIdentity = { workerProvider: model.provider, workerModel: model.id };
           const stateRoot = process.env.CAPSULE_STATE_DIR;
           if (stateRoot && !isAbsolute(stateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");
           const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
           if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_FLASH_TIMEOUT_MS must be a representable positive integer");
           const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: stateRoot ? `${stateRoot}/worker-sessions` : `${ctx.cwd}/.pi/capsule/worker-sessions`,
-            model, tools: toolOverride ?? [], parentContext: () => captureParentContext(pi, ctx, toolOverride) });
+            model, thinkingLevel, tools: toolOverride ?? [], parentContext: () => captureParentContext(pi, ctx, toolOverride) });
           const generation = sessionGeneration;
           service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs,
             onTelemetry: telemetry => {

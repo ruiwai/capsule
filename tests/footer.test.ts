@@ -18,7 +18,7 @@ describe("Flash footer", () => {
 
   it("shows the current state and model id in the sole aligned row before telemetry arrives", () => {
     const line = formatFlashFooterLine(undefined, 80, theme, "openai-codex/gpt-5.6-luna", "starting");
-    expect(line).toMatch(/^Flash: starting +gpt-5\.6-luna$/);
+    expect(line).toMatch(/^ +Flash: starting · gpt-5\.6-luna$/);
     expect(visibleWidth(line)).toBe(80);
     expect(line).not.toContain("idle");
   });
@@ -30,7 +30,8 @@ describe("Flash footer", () => {
       model: "gpt-6-astra", thinkingLevel: "medium", subscription: true, cacheHitRate: 96.5,
     }, 120, theme);
     expect(line).toContain("↑19k ↓1.7k R83k CH96.5% $0.358 (sub) 96.5%/272k");
-    expect(line.endsWith("gpt-6-astra • medium")).toBe(true);
+    expect(line.startsWith("↑19k")).toBe(true);
+    expect(line.endsWith("Flash: idle · gpt-6-astra • medium")).toBe(true);
     expect(line.length).toBe(120);
   });
 
@@ -75,7 +76,7 @@ describe("Flash footer", () => {
 
   it("truncates safely at narrow widths without inventing usage", () => {
     const line = formatFlashFooterLine(undefined, 24, theme);
-    expect(line).toBe("Flash: idle");
+    expect(line).toBe("Flash: idle".padStart(24));
     const populated = formatFlashFooterLine({
       tokens: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0 }, cost: 0,
       contextUsage: { tokens: null, contextWindow: 272000, percent: null }, model: "very-long-worker-model", thinkingLevel: "high",

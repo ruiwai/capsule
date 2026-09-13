@@ -30,9 +30,13 @@ export interface CapsuleBackend {
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
 export const DEFAULT_FLASH_MODEL = "openai-codex/gpt-5.6-luna";
+export const FLASH_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
+export type FlashThinkingLevel = typeof FLASH_THINKING_LEVELS[number];
+export const DEFAULT_FLASH_THINKING_LEVEL: FlashThinkingLevel = "off";
 export type ParentWorkerContext = { systemPrompt: string; extensionPaths: string[]; tools: string[] };
 export type PiBackendOptions = {
   cwd: string; stateDir: string; model: PiModel; tools: string[];
+  thinkingLevel?: FlashThinkingLevel;
   /** Read anew for each delegation so prompt/tool changes are not cached. */
   parentContext?: () => ParentWorkerContext;
 };
@@ -103,6 +107,7 @@ export class PiSdkBackend implements CapsuleBackend {
       notes: `Worker extensions failed to load: ${extensionErrors.map(x => `${x.path}: ${x.error}`).join("; ")}` });
     const manager = SessionManager.create(this.options.cwd, this.options.stateDir);
     const creating = createAgentSession({ cwd: this.options.cwd, model: this.options.model,
+      thinkingLevel: this.options.thinkingLevel ?? DEFAULT_FLASH_THINKING_LEVEL,
       tools: [...(parent?.tools ?? this.options.tools), "yield"], excludeTools: ["delegate_capsule"],
       resourceLoader: loader, sessionManager: manager });
     const created = await stage(creating);
@@ -182,6 +187,17 @@ export class PiSdkBackend implements CapsuleBackend {
       unsubscribe(); session.dispose();
     }
   }
+}
+
+/** Read the extension-owned setting without allowing it to alter Pi's parent. */
+export function resolveConfiguredThinkingLevel(settings: unknown, environmentValue?: string): FlashThinkingLevel {
+  const configured = environmentValue ?? (settings && typeof settings === "object"
+    ? (settings as { capsuleFlashThinkingLevel?: unknown }).capsuleFlashThinkingLevel : undefined);
+  if (configured === undefined) return DEFAULT_FLASH_THINKING_LEVEL;
+  if (typeof configured !== "string" || !(FLASH_THINKING_LEVELS as readonly string[]).includes(configured)) {
+    throw Error(`configuration_required: capsuleFlashThinkingLevel must be one of ${FLASH_THINKING_LEVELS.join(", ")}`);
+  }
+  return configured as FlashThinkingLevel;
 }
 
 export function resolveConfiguredModel(registry: ModelRegistry, spec: string | undefined): PiModel {

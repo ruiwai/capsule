@@ -76,10 +76,16 @@ Start with [interfaces](docs/INTERFACES.md), then the
 [documentation index](docs/README.md) links architecture, lifecycle, and Pi hooks.
 Reuse the existing Pi SDK/subagent design rather than adding another controller.
 
-Project settings load the extension only. The Pi user-selected model remains the
-parent agent and orchestrator; this plugin never selects or switches it. Flash is
-configured independently and defaults to `openai-codex/gpt-5.6-luna`;
-`CAPSULE_FLASH_MODEL` overrides that worker default.
+The Pi user-selected model remains the parent agent and orchestrator; this
+plugin never selects or switches it. Flash is configured independently and
+defaults to `openai-codex/gpt-5.6-luna`; `CAPSULE_FLASH_MODEL` overrides that
+worker default.
+Set the worker's reasoning strength in project `.pi/settings.json` with
+`"capsuleFlashThinkingLevel": "high"` (valid values: `off`, `minimal`, `low`,
+`medium`, `high`, `xhigh`). This setting is Flash-only and does not change the
+parent model. A global setting is used when the project setting is absent; the
+project setting wins, and `CAPSULE_FLASH_THINKING_LEVEL` overrides both for a
+process. Invalid values fail before the worker starts.
 Both use normal Pi authentication. In the repository's Node/npm development
 environment:
 

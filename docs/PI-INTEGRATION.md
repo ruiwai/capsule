@@ -73,6 +73,11 @@ extension without a parent model default: the Pi user-selected model is the
 parent agent and orchestrator, and the plugin never selects or switches it. The adapter
 configures Flash independently, defaulting to `openai-codex/gpt-5.6-luna`, with
 `CAPSULE_FLASH_MODEL` as an explicit override.
+The extension-owned `capsuleFlashThinkingLevel` setting is passed as the worker
+session's thinking level; it never changes the parent session. A project value
+wins over a global value, and `CAPSULE_FLASH_THINKING_LEVEL` wins over both.
+Values are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`; invalid values
+fail before worker setup.
 Keep the configured model selection explicit,
 exclude the parent's delegation tool from the worker, and keep provider
 credentials in normal Pi configuration. Preserve existing runtime permissions.

@@ -10,7 +10,7 @@ import capsuleExtension from "../src/extension/index.js";
 import { DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_FLASH_MODEL, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
 
 const lesson = "Applies while lock-v1 is current. Run the focused check; guard against changing the lock. Verify the decisive assertion.";
 const handoff: YieldArgs = { reason: "completed", result: { ok: false }, notes: "SUPPLEMENT_ONLY_991",
@@ -151,6 +151,22 @@ describe("refined Capsule lifecycle", () => {
 });
 
 describe("parent/child tool separation", () => {
+  it("validates the Flash-only reasoning setting without changing the parent setting", () => {
+    expect(DEFAULT_FLASH_THINKING_LEVEL).toBe("off");
+    for (const level of FLASH_THINKING_LEVELS) expect(resolveConfiguredThinkingLevel({ capsuleFlashThinkingLevel: level })).toBe(level);
+    expect(resolveConfiguredThinkingLevel({ capsuleFlashThinkingLevel: "low" }, "high")).toBe("high");
+    expect(resolveConfiguredThinkingLevel({ capsuleFlashThinkingLevel: "high" })).toBe("high");
+    expect(() => resolveConfiguredThinkingLevel({ capsuleFlashThinkingLevel: "turbo" })).toThrow(/capsuleFlashThinkingLevel/);
+    expect(() => resolveConfiguredThinkingLevel({}, "turbo")).toThrow(/capsuleFlashThinkingLevel/);
+  });
+
+  it("uses project settings over global settings before resolving Flash reasoning", () => {
+    const globalSettings = { capsuleFlashThinkingLevel: "medium" };
+    const projectSettings = { capsuleFlashThinkingLevel: "minimal" };
+    expect(resolveConfiguredThinkingLevel({ ...globalSettings, ...projectSettings })).toBe("minimal");
+    expect(resolveConfiguredThinkingLevel(globalSettings)).toBe("medium");
+  });
+
   it("keeps the effective parent prompt when a preceding extension replaces it", async () => {
     const project = root();
     const replacing = join(project, "poor-like.mjs");
