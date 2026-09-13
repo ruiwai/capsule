@@ -7,6 +7,14 @@ directories: `src/capsule/` contains contracts, prompts, backend, and service;
 `src/extension/` contains the Pi entrypoint, parent-context integration,
 renderers, and footer. There is no CLI, scripted path, or compatibility layer.
 
+Within `src/capsule/`, `worker.ts` defines the SDK-independent backend and
+telemetry contracts shared by the lifecycle service, Pi adapter, and footer.
+`service.ts` owns supervision and result projection; `storage.ts` owns
+project-local transcript, notes, and JIT persistence. Only `backend.ts` adapts
+the worker to Pi. Temporary transcript/JIT files are cleaned up on failure.
+Architecture tests enforce core/adapter boundaries and entrypoint reachability;
+TypeScript rejects unused locals/parameters and unreachable statements.
+
 ## Responsibilities
 
 **The parent agent** owns task direction, important decisions, semantic judgment, and review.

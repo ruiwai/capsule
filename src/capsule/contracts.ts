@@ -13,7 +13,7 @@ export const DelegateCapsuleParameters = Type.Object({
     description: "Deadline in seconds, including startup and result preparation. Default: configured timeout (normally 300s)." })),
 }, { additionalProperties: false });
 
-export const JitEntryParameters = Type.Object({
+const JitEntryParameters = Type.Object({
   topic: Type.String({ minLength: 1, maxLength: 64, pattern: "^[a-z0-9][a-z0-9_-]*$",
     description: "Stable project-local topic key, not a filesystem path." }),
   content: Type.String({ minLength: 1, maxLength: 4_000, pattern: nonBlank,
@@ -36,7 +36,6 @@ export const YieldParameters = Type.Union([
 ]);
 
 export type DelegateCapsuleArgs = Static<typeof DelegateCapsuleParameters>;
-export type JitEntry = Static<typeof JitEntryParameters>;
 export type YieldArgs = Static<typeof YieldParameters>;
 export type DelegateCapsuleResult =
   | { status: "completed"; result: unknown; notes_path?: string; raw_history: string }

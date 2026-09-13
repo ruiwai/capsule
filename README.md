@@ -17,7 +17,9 @@ JIT, and parent-owned watchdog described below. See
 ## Production architecture
 
 The production implementation has two source directories. `src/capsule/`
-contains the contracts, prompt construction, Pi backend, and delegation service.
+contains the contracts, prompt construction, Pi backend, delegation service,
+and project-local storage. SDK-independent worker contracts keep the service
+and shared telemetry separate from the Pi adapter.
 `src/extension/` contains the Pi entrypoint, parent-context integration, custom
 renderers, and footer. There is no CLI, scripted execution path, or compatibility
 layer.

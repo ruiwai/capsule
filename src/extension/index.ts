@@ -5,13 +5,14 @@ import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel, resolveConfi
 import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
-import { installCapsuleFooter, type FlashTelemetry } from "./footer.js";
+import { installCapsuleFooter } from "./footer.js";
+import type { WorkerTelemetry } from "../capsule/worker.js";
 import { captureParentContext } from "./parent-context.js";
 
 export default function capsuleExtension(pi: ExtensionAPI) {
   let service: CapsuleService | undefined;
   let workerIdentity: { workerProvider: string; workerModel: string } | undefined;
-  let workerTelemetry: FlashTelemetry | undefined;
+  let workerTelemetry: WorkerTelemetry | undefined;
   let workerState = "idle";
   let requestFooterRender: (() => void) | undefined;
   let sessionGeneration = 0;

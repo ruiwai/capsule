@@ -2,16 +2,7 @@ import { truncateToWidth, visibleWidth, type Component, type TUI } from "@earend
 import { FooterComponent, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-export type FlashTelemetry = {
-  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
-  cost: number;
-  contextUsage?: { tokens: number | null; contextWindow: number; percent: number | null };
-  model: string;
-  thinkingLevel?: string;
-  subscription?: boolean;
-  cacheHitRate?: number;
-  autoCompaction?: boolean;
-};
+import type { WorkerTelemetry } from "../capsule/worker.js";
 
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
@@ -35,7 +26,7 @@ function align(left: string, right: string, width: number): string {
 }
 
 /** The same compact stats grammar as Pi's footer, with real worker values. */
-export function formatFlashFooterLine(telemetry: FlashTelemetry | undefined, width: number, theme: any, idleModel?: string, state = "idle"): string {
+export function formatFlashFooterLine(telemetry: WorkerTelemetry | undefined, width: number, theme: any, idleModel?: string, state = "idle"): string {
   if (!telemetry) {
     const model = idleModel?.slice(idleModel.indexOf("/") + 1);
     return align("", theme.fg("dim", `Flash: ${state}${model ? ` · ${model}` : ""}`), width);
@@ -60,7 +51,7 @@ export function formatFlashFooterLine(telemetry: FlashTelemetry | undefined, wid
 /** Use Pi's public footer for the parent, then append one independent Flash row. */
 export function installCapsuleFooter(
   ctx: ExtensionContext,
-  telemetry: () => FlashTelemetry | undefined,
+  telemetry: () => WorkerTelemetry | undefined,
   onRender?: (requestRender: (() => void) | undefined) => void,
   idleModel?: () => string,
   workerState?: () => string,

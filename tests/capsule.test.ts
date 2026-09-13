@@ -10,7 +10,9 @@ import capsuleExtension from "../src/extension/index.js";
 import { DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "../src/capsule/backend.js";
+import type { BackendOutcome, CapsuleBackend } from "../src/capsule/worker.js";
+import { CapsuleStorage } from "../src/capsule/storage.js";
 
 const lesson = "Applies while lock-v1 is current. Run the focused check; guard against changing the lock. Verify the decisive assertion.";
 const handoff: YieldArgs = { reason: "completed", result: { ok: false }, notes: "SUPPLEMENT_ONLY_991",
@@ -143,10 +145,14 @@ describe("refined Capsule lifecycle", () => {
 
   it("bounds hanging storage after an early yield", async () => {
     const service = new CapsuleService(new RecordingBackend([settled("ready")]), { projectRoot: root(), cleanupMs: 10 });
-    (service as any).retain = () => new Promise(() => {});
-    const result = await service.delegate({ capsule: "work", output_example: "x", timeout_s: 0.01 });
-    expect(result.status).toBe("timeout"); expect(result).not.toHaveProperty("raw_history");
-    expect((result as any).notes).toMatch(/not confirmed/);
+    const retain = vi.spyOn(CapsuleStorage.prototype, "retain").mockImplementation(() => new Promise(() => {}));
+    try {
+      const result = await service.delegate({ capsule: "work", output_example: "x", timeout_s: 0.01 });
+      expect(result.status).toBe("timeout"); expect(result).not.toHaveProperty("raw_history");
+      expect((result as any).notes).toMatch(/not confirmed/);
+    } finally {
+      retain.mockRestore();
+    }
   });
 });
 
@@ -217,7 +223,7 @@ describe("parent/child tool separation", () => {
       getAllTools: () => configured,
       getCommands: () => commands,
     };
-    const run = vi.spyOn(PiSdkBackend.prototype, "run").mockImplementation(async function (this: PiSdkBackend, input) {
+    const run = vi.spyOn(PiSdkBackend.prototype, "run").mockImplementation(async function (this: PiSdkBackend) {
       const parent = (this as any).options.parentContext();
       (this as any).__parents ??= [];
       (this as any).__parents.push(parent);

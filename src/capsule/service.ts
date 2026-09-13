@@ -1,12 +1,7 @@
-import { access, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { constants } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { randomUUID } from "node:crypto";
-import type { CapsuleBackend, TranscriptRecord, WorkerTelemetry } from "./backend.js";
+import type { CapsuleBackend, WorkerTelemetry } from "./worker.js";
+import { CapsuleStorage } from "./storage.js";
 import { MAX_TIMER_MS, validateDelegate, validateYield, type DelegateCapsuleArgs, type DelegateCapsuleResult } from "./contracts.js";
 
-type SavedJit = { topic: string; content: string; raw_history: string; updatedAt: string };
-type JitFile = { version: 1; entries: SavedJit[] };
 export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; cleanupMs?: number; onTelemetry?: (telemetry: WorkerTelemetry) => void };
 
 type InternalResult = { value?: DelegateCapsuleResult; cleanupConfirmed: boolean };
@@ -15,64 +10,26 @@ const DEFAULT_CLEANUP_MS = 5_000;
 
 export class CapsuleService {
   private activeOwner: symbol | undefined;
-  readonly stateRoot: string;
+  private readonly storage: CapsuleStorage;
   constructor(private readonly backend: CapsuleBackend, private readonly options: CapsuleServiceOptions) {
-    const projectRoot = resolve(options.projectRoot);
-    this.stateRoot = resolve(options.stateRoot ?? join(projectRoot, ".pi", "capsule"));
-    const stateRelative = relative(projectRoot, this.stateRoot);
-    if (stateRelative === ".." || stateRelative.startsWith(`..${sep}`) || isAbsolute(stateRelative)) {
-      throw Error("configuration_required: Capsule state must be scoped inside the current project");
-    }
+    this.storage = new CapsuleStorage(options.projectRoot, options.stateRoot);
     const configured = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     if (!Number.isSafeInteger(configured) || configured <= 0 || configured > MAX_TIMER_MS)
       throw Error("configuration_required: Capsule timeout must be a representable positive integer");
     if (!Number.isSafeInteger(options.cleanupMs ?? DEFAULT_CLEANUP_MS) || (options.cleanupMs ?? DEFAULT_CLEANUP_MS) <= 0)
       throw Error("configuration_required: Capsule cleanup allowance must be a positive integer");
   }
-  private async loadJit(): Promise<SavedJit[]> {
-    try { const value = JSON.parse(await readFile(join(this.stateRoot, "jit.json"), "utf8")) as JitFile; return value.version === 1 && Array.isArray(value.entries) ? value.entries : []; }
-    catch (e: any) { if (e.code === "ENOENT") return []; throw e; }
-  }
-  private async retain(records: TranscriptRecord[]): Promise<string> {
-    const dir = join(this.stateRoot, "episodes");
-    await mkdir(dir, { recursive: true, mode: 0o700 });
-    const target = join(dir, `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}.jsonl`);
-    const temporary = `${target}.tmp`;
-    const body = records.map(record => JSON.stringify(record)).join("\n") + "\n";
-    const handle = await open(temporary, "wx", 0o600);
-    try { await handle.writeFile(body, "utf8"); await handle.sync(); } finally { await handle.close(); }
-    await rename(temporary, target);
-    await access(target, constants.R_OK);
-    if (!isAbsolute(target)) throw Error("transcript retention produced a non-absolute path");
-    return target;
-  }
-  private async retainNotes(notes: string): Promise<string> {
-    const dir = join(this.stateRoot, "episodes");
-    await mkdir(dir, { recursive: true, mode: 0o700 });
-    const target = join(dir, `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}-notes.md`);
-    await writeFile(target, notes, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    await access(target, constants.R_OK);
-    if (!isAbsolute(target)) throw Error("notes retention produced a non-absolute path");
-    return target;
-  }
-  private async publish(entries: SavedJit[], signal: AbortSignal) {
-    await mkdir(this.stateRoot, { recursive: true, mode: 0o700 });
-    const target = join(this.stateRoot, "jit.json"), temporary = `${target}.${randomUUID()}.tmp`;
-    await writeFile(temporary, JSON.stringify({ version: 1, entries } satisfies JitFile, null, 2), { mode: 0o600, signal });
-    if (signal.aborted) { await rm(temporary, { force: true }); throw Object.assign(Error("JIT publication interrupted"), { name: "AbortError" }); }
-    try { await rename(temporary, target); } catch (e) { await rm(temporary, { force: true }); throw e; }
-  }
   private async execute(args: DelegateCapsuleArgs, signal: AbortSignal, state: { transcript?: string }): Promise<InternalResult> {
     let cleanupConfirmed = true;
     try {
-      const old = await this.loadJit();
+      const old = await this.storage.loadJit();
       if (signal.aborted) return { cleanupConfirmed };
       const selected = [...old].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8);
       const outcome = await this.backend.run({ capsule: args.capsule, outputExample: args.output_example, jit: selected,
         signal, cleanupMs: this.options.cleanupMs ?? DEFAULT_CLEANUP_MS, onTelemetry: this.options.onTelemetry });
       cleanupConfirmed = outcome.cleanupConfirmed !== false;
       // Retain observations during bounded cleanup too, but never publish a late handoff/JIT.
-      try { state.transcript = await this.retain(outcome.records); }
+      try { state.transcript = await this.storage.retain(outcome.records); }
       catch (error) {
         return { cleanupConfirmed, value: { status: "error", notes: `Transcript retention failed. No result or new JIT was published, and the parent agent must resolve storage before retrying: ${String(error)}` } };
       }
@@ -87,7 +44,7 @@ export class CapsuleService {
 
       let notesPath: string | undefined;
       if (outcome.yield.reason === "completed" && outcome.yield.notes) {
-        try { notesPath = await this.retainNotes(outcome.yield.notes); }
+        try { notesPath = await this.storage.retainNotes(outcome.yield.notes); }
         catch (error) { return { cleanupConfirmed, value: { status: "error", notes: `Supplementary-note retention failed. Completion and new JIT were withheld; fix storage and retry: ${String(error)}`, raw_history: state.transcript } }; }
       }
       if (signal.aborted) return { cleanupConfirmed };
@@ -95,7 +52,7 @@ export class CapsuleService {
         const replacements = new Map(old.map(x => [x.topic, x]));
         for (const entry of outcome.yield.JITed_history)
           replacements.set(entry.topic, { ...entry, raw_history: state.transcript, updatedAt: new Date().toISOString() });
-        try { await this.publish([...replacements.values()], signal); }
+        try { await this.storage.publish([...replacements.values()], signal); }
         catch (error) { return { cleanupConfirmed, value: { status: "error", notes: `JIT publication failed after transcript retention. Prior knowledge remains authoritative; fix storage before retrying: ${String(error)}`, raw_history: state.transcript } }; }
       }
       if (signal.aborted) return { cleanupConfirmed };
@@ -115,8 +72,7 @@ export class CapsuleService {
   async delegate(args: unknown, externalSignal?: AbortSignal): Promise<DelegateCapsuleResult> {
     validateDelegate(args);
     if (this.activeOwner) return { status: "error", notes: "A prior Capsule delegation still owns this workspace. Its cleanup is not confirmed; wait for termination or restart the runtime before delegating again." };
-    const typed = args as DelegateCapsuleArgs;
-    const timeoutMs = typed.timeout_s === undefined ? (this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS) : typed.timeout_s * 1000;
+    const timeoutMs = args.timeout_s === undefined ? (this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS) : args.timeout_s * 1000;
     const cleanupMs = this.options.cleanupMs ?? DEFAULT_CLEANUP_MS;
     const owner = Symbol("capsule-owner");
     this.activeOwner = owner;
@@ -131,7 +87,7 @@ export class CapsuleService {
     let workingTimer: NodeJS.Timeout | undefined;
     let cleanupTimer: NodeJS.Timeout | undefined;
     const deadline = new Promise<"timeout">(resolve => { workingTimer = setTimeout(() => { controller.abort(); resolve("timeout"); }, timeoutMs); });
-    const work = this.execute(typed, controller.signal, state);
+    const work = this.execute(args, controller.signal, state);
     const release = () => { if (this.activeOwner === owner) this.activeOwner = undefined; };
     try {
       const winner = await Promise.race([work.then(value => ({ kind: "work" as const, value })), deadline.then(kind => ({ kind })), external.then(kind => ({ kind }))]);
