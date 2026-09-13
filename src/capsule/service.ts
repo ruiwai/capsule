@@ -2,12 +2,12 @@ import { access, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/pr
 import { constants } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { CapsuleBackend, TranscriptRecord } from "./backend.js";
+import type { CapsuleBackend, TranscriptRecord, WorkerTelemetry } from "./backend.js";
 import { MAX_TIMER_MS, validateDelegate, validateYield, type DelegateCapsuleArgs, type DelegateCapsuleResult } from "./contracts.js";
 
 type SavedJit = { topic: string; content: string; raw_history: string; updatedAt: string };
 type JitFile = { version: 1; entries: SavedJit[] };
-export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; cleanupMs?: number };
+export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; cleanupMs?: number; onTelemetry?: (telemetry: WorkerTelemetry) => void };
 
 type InternalResult = { value?: DelegateCapsuleResult; cleanupConfirmed: boolean };
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -69,7 +69,7 @@ export class CapsuleService {
       if (signal.aborted) return { cleanupConfirmed };
       const selected = [...old].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8);
       const outcome = await this.backend.run({ capsule: args.capsule, outputExample: args.output_example, jit: selected,
-        signal, cleanupMs: this.options.cleanupMs ?? DEFAULT_CLEANUP_MS });
+        signal, cleanupMs: this.options.cleanupMs ?? DEFAULT_CLEANUP_MS, onTelemetry: this.options.onTelemetry });
       cleanupConfirmed = outcome.cleanupConfirmed !== false;
       // Retain observations during bounded cleanup too, but never publish a late handoff/JIT.
       try { state.transcript = await this.retain(outcome.records); }

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { isAbsolute } from "node:path";
 import { ScriptedService } from "../controller/scripted.js";
@@ -8,6 +8,7 @@ import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel } from "../ca
 import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
+import { installCapsuleFooter, type FlashTelemetry } from "./footer.js";
 
 /** Both adapters use this boundary; caller identity comes only from trusted
  * operator configuration, never from a model-supplied issuer field. */
@@ -49,6 +50,31 @@ export function scriptedExtension(pi: ExtensionAPI) {
 export default function capsuleExtension(pi: ExtensionAPI) {
   let service: CapsuleService | undefined;
   let workerIdentity: { workerProvider: string; workerModel: string } | undefined;
+  let workerTelemetry: FlashTelemetry | undefined;
+  let workerState = "idle";
+  let requestFooterRender: (() => void) | undefined;
+  let sessionGeneration = 0;
+  const flashModel = () => workerIdentity
+    ? `${workerIdentity.workerProvider}/${workerIdentity.workerModel}`
+    : (process.env.CAPSULE_FLASH_MODEL || DEFAULT_FLASH_MODEL);
+  const showFlashStatus = (ctx: ExtensionContext, state: string) => {
+    workerState = state;
+    // The custom TUI footer owns the single Flash row. Keep the status fallback
+    // only for other UI modes, and clear any status left by an earlier version.
+    if (ctx.hasUI) ctx.ui.setStatus("capsule.flash", ctx.mode === "tui"
+      ? undefined : `Flash: ${state} · ${flashModel()}`);
+    requestFooterRender?.();
+  };
+  pi.on("session_start", async (_event, ctx) => {
+    // A replacement session must not inherit the previous worker's row or identity.
+    sessionGeneration++;
+    service = undefined;
+    workerTelemetry = undefined;
+    workerIdentity = undefined;
+    requestFooterRender = undefined;
+    showFlashStatus(ctx, "idle");
+    installCapsuleFooter(ctx, () => workerTelemetry, render => { requestFooterRender = render; }, flashModel, () => workerState);
+  });
   pi.on("before_agent_start", async event => ({
     systemPrompt: `${event.systemPrompt}\n\n${PARENT_CAPSULE_PROMPT}`,
   }));
@@ -57,6 +83,8 @@ export default function capsuleExtension(pi: ExtensionAPI) {
     description: DELEGATE_CAPSULE_DESCRIPTION,
     parameters: DelegateCapsuleParameters,
     async execute(_id, args, signal, _update, ctx) {
+      showFlashStatus(ctx, "starting");
+      workerTelemetry = undefined;
       try {
         if (!service) {
           // A failed setup must not leave the previous worker's identity on its
@@ -70,18 +98,28 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
           if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_FLASH_TIMEOUT_MS must be a representable positive integer");
           const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: stateRoot ? `${stateRoot}/worker-sessions` : `${ctx.cwd}/.pi/capsule/worker-sessions`, model, tools });
-          service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs });
+          const generation = sessionGeneration;
+          service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs,
+            onTelemetry: telemetry => {
+              if (generation !== sessionGeneration) return;
+              workerTelemetry = telemetry;
+              requestFooterRender?.();
+            } });
         }
+        showFlashStatus(ctx, "running");
         const value = await service.delegate(args, signal);
+        showFlashStatus(ctx, value.status);
         return { content: [{ type: "text", text: JSON.stringify(value) }], details: { ...value, capsuleUi: workerIdentity } };
       } catch (error) {
-        if ((error as any)?.name === "AbortError" || signal?.aborted) throw error;
+        if ((error as any)?.name === "AbortError" || signal?.aborted) {
+          showFlashStatus(ctx, "cancelled");
+          throw error;
+        }
+        showFlashStatus(ctx, "error");
         const value: DelegateCapsuleResult = { status: "error", notes: `Capsule setup failed before a result was established. Correct the configuration or runtime error and retry: ${String(error)}` };
         return { content: [{ type: "text", text: JSON.stringify(value) }], details: { ...value, capsuleUi: workerIdentity } };
       }
     },
-    ...capsuleRenderers(() => workerIdentity
-      ? `${workerIdentity.workerProvider}/${workerIdentity.workerModel}`
-      : (process.env.CAPSULE_FLASH_MODEL || DEFAULT_FLASH_MODEL)),
+    ...capsuleRenderers(flashModel),
   });
 }

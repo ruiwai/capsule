@@ -13,9 +13,19 @@ export type BackendOutcome = {
   /** False means owned worker cleanup could not be observed within the allowance. */
   cleanupConfirmed?: boolean;
 };
+export type WorkerTelemetry = {
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  cost: number;
+  contextUsage?: { tokens: number | null; contextWindow: number; percent: number | null };
+  model: string;
+  thinkingLevel?: string;
+  subscription?: boolean;
+  cacheHitRate?: number;
+  autoCompaction?: boolean;
+};
 export interface CapsuleBackend {
   run(input: { capsule: string; outputExample: string; jit: Array<{ topic: string; content: string; raw_history: string }>;
-    signal: AbortSignal; cleanupMs: number }): Promise<BackendOutcome>;
+    signal: AbortSignal; cleanupMs: number; onTelemetry?: (telemetry: WorkerTelemetry) => void }): Promise<BackendOutcome>;
 }
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
@@ -93,12 +103,27 @@ export class PiSdkBackend implements CapsuleBackend {
         notes: "Worker session startup did not settle during termination." });
     }
     const { session } = created;
+    const publishTelemetry = () => {
+      if (!input.onTelemetry) return;
+      const stats = session.getSessionStats();
+      const usage = stats.tokens;
+      const latest = [...session.sessionManager.getEntries()].reverse().find((entry: any) => entry.type === "message" && entry.message?.role === "assistant") as any;
+      const latestUsage = latest?.message?.usage;
+      const prompt = latestUsage ? latestUsage.input + latestUsage.cacheRead + latestUsage.cacheWrite : 0;
+      input.onTelemetry({ tokens: { input: usage.input, output: usage.output, cacheRead: usage.cacheRead, cacheWrite: usage.cacheWrite },
+        cost: stats.cost, contextUsage: session.getContextUsage(), model: session.model?.id ?? this.options.model.id,
+        thinkingLevel: session.thinkingLevel, autoCompaction: session.autoCompactionEnabled,
+        subscription: session.model ? session.model.provider === "kimi-coding" || session.modelRuntime.isUsingSubscription(session.model.provider) : false,
+        cacheHitRate: prompt > 0 ? latestUsage.cacheRead / prompt * 100 : undefined });
+    };
+    publishTelemetry();
     const unsubscribe = session.subscribe(event => {
       // These are actual public Pi events. No environment or provider credentials are recorded.
       if (event.type === "message_end") records.push({ type: "message", message: event.message });
       else if (event.type === "tool_execution_start") records.push({ type: "tool_start", toolCallId: event.toolCallId, toolName: event.toolName, args: event.args });
       else if (event.type === "tool_execution_end") records.push({ type: "tool_end", toolCallId: event.toolCallId, toolName: event.toolName, result: event.result, isError: event.isError });
       else if (event.type === "agent_settled") records.push({ type: "agent_settled" });
+      if (event.type === "message_end" || event.type === "tool_execution_end" || event.type === "agent_settled") publishTelemetry();
     });
     let abortPromise: Promise<unknown> | undefined;
     const abort = () => { abortPromise ??= Promise.resolve().then(() => session.abort()); };

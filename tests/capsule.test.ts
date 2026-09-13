@@ -150,6 +150,38 @@ describe("refined Capsule lifecycle", () => {
 });
 
 describe("parent/child tool separation", () => {
+  it.each(["completed", "blocked", "timeout", "error", "cancelled"])("shows independent Flash status through %s", async status => {
+    const tools: any[] = [], hooks = new Map<string, any>();
+    const setStatus = vi.fn();
+    const ctx = { hasUI: true, ui: { setStatus }, cwd: process.cwd(),
+      modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) } };
+    vi.stubEnv("CAPSULE_FLASH_MODEL", "other/custom");
+    vi.stubEnv("CAPSULE_STATE_DIR", undefined);
+    vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
+    const delegate = vi.spyOn(CapsuleService.prototype, "delegate");
+    const abort = Object.assign(new Error("cancelled"), { name: "AbortError" });
+    if (status === "cancelled") delegate.mockRejectedValue(abort);
+    else delegate.mockResolvedValue({ status, notes: "stub" } as any);
+    try {
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool),
+        on: (name: string, handler: any) => hooks.set(name, handler) } as any);
+      await hooks.get("session_start")({}, ctx);
+      expect(setStatus).toHaveBeenLastCalledWith("capsule.flash", "Flash: idle · other/custom");
+      const result = tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
+      if (status === "cancelled") await expect(result).rejects.toBe(abort);
+      else await result;
+      expect(setStatus.mock.calls.map(call => call[1])).toEqual([
+        "Flash: idle · other/custom", "Flash: starting · other/custom",
+        "Flash: running · other/custom", `Flash: ${status} · other/custom`,
+      ]);
+      setStatus.mockClear();
+      await hooks.get("session_start")({}, { ...ctx, hasUI: false });
+      expect(setStatus).not.toHaveBeenCalled();
+    } finally {
+      delegate.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
   it("leaves the Pi-selected parent model alone and retains the independent Flash default/override", async () => {
     const settings = JSON.parse(await readFile(join(process.cwd(), ".pi", "settings.json"), "utf8"));
     expect(settings).not.toHaveProperty("defaultProvider");
