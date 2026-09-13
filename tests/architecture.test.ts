@@ -40,19 +40,20 @@ describe("production architecture", () => {
         if (file.startsWith("capsule/")) {
           expect(target.startsWith(join(root, "capsule") + "/")).toBe(true);
         }
-        if (["capsule/service.ts", "capsule/storage.ts", "capsule/worker.ts", "capsule/contracts.ts"].includes(file)) {
-          expect(target).not.toBe(join(root, "capsule/backend.ts"));
-        }
       }
-      if (["capsule/service.ts", "capsule/storage.ts", "capsule/worker.ts", "capsule/contracts.ts"].includes(file)) {
+      if (file.startsWith("capsule/")) {
         expect(ts.preProcessFile(source).importedFiles.some(x => x.fileName.startsWith("@earendil-works/"))).toBe(false);
       }
     }
     const reachable = new Set<string>();
+    const visiting = new Set<string>();
     const visit = (file: string) => {
+      expect(visiting.has(file), `Dependency cycle at ${file}`).toBe(false);
       if (reachable.has(file)) return;
+      visiting.add(file);
       reachable.add(file);
       for (const dependency of graph.get(file) ?? []) visit(dependency);
+      visiting.delete(file);
     };
     visit(join(root, "extension/index.ts"));
     expect([...graph.keys()].filter(file => !reachable.has(file))).toEqual([]);

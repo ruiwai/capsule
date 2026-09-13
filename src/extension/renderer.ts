@@ -1,6 +1,6 @@
 import { getMarkdownTheme, type Theme } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Text, type Component } from "@earendil-works/pi-tui";
-import { DEFAULT_FLASH_MODEL } from "../capsule/backend.js";
+import { DEFAULT_FLASH_MODEL } from "./pi-backend.js";
 
 export type CapsuleUiDetails = {
   workerProvider?: string;

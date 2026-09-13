@@ -10,7 +10,7 @@ import capsuleExtension from "../src/extension/index.js";
 import { DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "../src/capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "../src/extension/pi-backend.js";
 import type { BackendOutcome, CapsuleBackend } from "../src/capsule/worker.js";
 import { CapsuleStorage } from "../src/capsule/storage.js";
 

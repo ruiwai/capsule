@@ -1,9 +1,9 @@
 import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, type ExtensionAPI, type InlineExtension, type ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { mkdir } from "node:fs/promises";
-import { YieldParameters, validateYield, type YieldArgs } from "./contracts.js";
-import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "./prompts.js";
+import { YieldParameters, validateYield, type YieldArgs } from "../capsule/contracts.js";
+import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
 
-import type { BackendOutcome, CapsuleBackend, TranscriptRecord } from "./worker.js";
+import type { BackendOutcome, CapsuleBackend, TranscriptRecord } from "../capsule/worker.js";
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
 export const DEFAULT_FLASH_MODEL = "openai-codex/gpt-5.6-luna";

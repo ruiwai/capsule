@@ -1,7 +1,7 @@
 import { SettingsManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isAbsolute } from "node:path";
 import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } from "../capsule/contracts.js";
-import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "../capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "./pi-backend.js";
 import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";

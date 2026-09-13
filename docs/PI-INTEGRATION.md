@@ -7,7 +7,7 @@ Automated tests use controlled backends; no new live-provider claim is made.
 
 ## Existing integration and reuse
 
-[backend.ts](../src/capsule/backend.ts) creates a fresh SDK session and a
+[pi-backend.ts](../src/extension/pi-backend.ts) creates a fresh SDK session and a
 worker-local inline extension. [service.ts](../src/capsule/service.ts) retains
 actual events and project-local JIT. The
 [parent extension](../src/extension/index.ts) registers `delegate_capsule` and

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PiSdkBackend } from "../src/capsule/backend.js";
+import { PiSdkBackend } from "../src/extension/pi-backend.js";
 import { captureParentContext } from "../src/extension/parent-context.js";
 
 describe("parent worker context", () => {

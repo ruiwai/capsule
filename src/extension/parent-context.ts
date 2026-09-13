@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isAbsolute } from "node:path";
-import type { ParentWorkerContext } from "../capsule/backend.js";
+import type { ParentWorkerContext } from "./pi-backend.js";
 
 /** Snapshot live parent state without sharing its mutable extension runtime. */
 export function captureParentContext(

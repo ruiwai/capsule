@@ -3,16 +3,19 @@
 The [original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the supervised
 context lifecycle. The [current interface](INTERFACES.md) refines the return
 format and timeout. The production source is deliberately split into two
-directories: `src/capsule/` contains contracts, prompts, backend, and service;
-`src/extension/` contains the Pi entrypoint, parent-context integration,
+directories: `src/capsule/` contains SDK-independent contracts, prompts, storage,
+and service; `src/extension/` contains the Pi entrypoint, runtime adapter, parent-context integration,
 renderers, and footer. There is no CLI, scripted path, or compatibility layer.
 
 Within `src/capsule/`, `worker.ts` defines the SDK-independent backend and
 telemetry contracts shared by the lifecycle service, Pi adapter, and footer.
 `service.ts` owns supervision and result projection; `storage.ts` owns
-project-local transcript, notes, and JIT persistence. Only `backend.ts` adapts
+project-local transcript, notes, and JIT persistence. Only `extension/pi-backend.ts` adapts
 the worker to Pi. Temporary transcript/JIT files are cleaned up on failure.
-Architecture tests enforce core/adapter boundaries and entrypoint reachability;
+Dependencies point from the extension to the core, never the reverse. The core
+depends on the `CapsuleBackend` interface, not its Pi implementation.
+Architecture tests enforce core/adapter boundaries, absence of dependency cycles,
+and entrypoint reachability;
 TypeScript rejects unused locals/parameters and unreachable statements.
 
 ## Responsibilities

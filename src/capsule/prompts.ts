@@ -41,8 +41,8 @@ export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArg
     timeout_s: 120,
   } },
   { task: "Git command (read-only)", args: {
-    capsule: "From the workspace root run git status --short, git diff -- src/capsule/backend.ts tests/capsule.test.ts, and git diff --cached -- src/capsule/backend.ts tests/capsule.test.ts. Report status paths and diff hunk headers for those two files, including whether they are staged or unstaged. No checkout, reset, commit, fetch, or other mutation; no artifact files needed.",
-    output_example: "Unstaged: src/capsule/backend.ts (@@ -35,7 +35,7 @@). Staged: none. tests/capsule.test.ts: unchanged.",
+    capsule: "From the workspace root run git status --short, git diff -- src/extension/pi-backend.ts tests/capsule.test.ts, and git diff --cached -- src/extension/pi-backend.ts tests/capsule.test.ts. Report status paths and diff hunk headers for those two files, including whether they are staged or unstaged. No checkout, reset, commit, fetch, or other mutation; no artifact files needed.",
+    output_example: "Unstaged: src/extension/pi-backend.ts (@@ -35,7 +35,7 @@). Staged: none. tests/capsule.test.ts: unchanged.",
   } },
   { task: "Target literature search (retrieve, do not evaluate)", args: {
     capsule: "Find at most 5 papers from 2020–2024 with 'speculative decoding' in the title using arXiv search and paper abstract pages. Network retrieval is allowed; no local inputs. Save title, authors, year, DOI/arXiv ID, URL, and a verbatim method sentence to artifacts/speculative-decoding.md. Include the query and sources searched; mark unavailable fields. Do not rank evidence, integrate findings, or propose hypotheses. If retrieval tools/network are unavailable, report blocked; do not invent citations.",
