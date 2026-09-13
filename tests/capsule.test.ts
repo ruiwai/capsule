@@ -5,11 +5,12 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
+import { DefaultResourceLoader, getAgentDir } from "@earendil-works/pi-coding-agent";
 import capsuleExtension from "../src/extension/index.js";
 import { DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_FLASH_MODEL, createWorkerExtension, resolveConfiguredModel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
 
 const lesson = "Applies while lock-v1 is current. Run the focused check; guard against changing the lock. Verify the decisive assertion.";
 const handoff: YieldArgs = { reason: "completed", result: { ok: false }, notes: "SUPPLEMENT_ONLY_991",
@@ -150,6 +151,89 @@ describe("refined Capsule lifecycle", () => {
 });
 
 describe("parent/child tool separation", () => {
+  it("keeps the effective parent prompt when a preceding extension replaces it", async () => {
+    const project = root();
+    const replacing = join(project, "poor-like.mjs");
+    await writeFile(replacing, `export default function poorLike(pi) {
+      pi.on("before_agent_start", async () => ({ systemPrompt: "POOR_REPLACED_PROMPT" }));
+    }\n`);
+    const state = { hooksRan: false, duplicate: false };
+    const worker = createWorkerExtension({
+      outputExample: "WORKER_OUTPUT_EXAMPLE",
+      jit: [],
+      parentSystemPrompt: `BASE_PARENT\n\n${PARENT_CAPSULE_PROMPT}`,
+    }, state);
+    const loader = new DefaultResourceLoader({ cwd: project, agentDir: getAgentDir(),
+      additionalExtensionPaths: [replacing], extensionFactories: [worker], noExtensions: true,
+      noSkills: true, noPromptTemplates: true, noContextFiles: true });
+    await loader.reload();
+    expect(loader.getExtensions().errors).toEqual([]);
+    const extensions = loader.getExtensions().extensions;
+    expect(extensions.at(-1)?.tools.has("yield")).toBe(true);
+    let effective = `BASE_PARENT\n\n${PARENT_CAPSULE_PROMPT}`;
+    for (const extension of extensions) {
+      for (const handler of extension.handlers.get("before_agent_start") ?? []) {
+        const result: any = await handler({ systemPrompt: effective } as any, undefined as any);
+        if (result?.systemPrompt !== undefined) effective = result.systemPrompt;
+      }
+    }
+    expect(effective).toContain("BASE_PARENT");
+    expect(effective).not.toContain(PARENT_CAPSULE_PROMPT);
+    expect(effective).toContain(WORKER_CAPSULE_PROMPT);
+    expect(effective).toContain("WORKER_OUTPUT_EXAMPLE");
+    expect(effective).not.toContain("POOR_REPLACED_PROMPT");
+    expect(state.hooksRan).toBe(true);
+  });
+
+  it("refreshes parent prompt, active tools, and extension source paths for each worker run", async () => {
+    const tools: any[] = [], hooks = new Map<string, any>();
+    let prompt = "PARENT_PROMPT_ONE", active = ["read", "delegate_capsule"];
+    let configured = [
+      { name: "read", sourceInfo: { path: "/tmp/read-extension.mjs" } },
+      { name: "delegate_capsule", sourceInfo: { path: "/tmp/capsule-extension.mjs" } },
+    ];
+    let commands = [{ source: "extension", sourceInfo: { path: "/tmp/command-extension.mjs" } }];
+    const pi = {
+      registerTool: (tool: any) => tools.push(tool),
+      on: (name: string, handler: any) => hooks.set(name, handler),
+      getSystemPrompt: () => prompt,
+      getActiveTools: () => active,
+      getAllTools: () => configured,
+      getCommands: () => commands,
+    };
+    const run = vi.spyOn(PiSdkBackend.prototype, "run").mockImplementation(async function (this: PiSdkBackend, input) {
+      const parent = (this as any).options.parentContext();
+      (this as any).__parents ??= [];
+      (this as any).__parents.push(parent);
+      return settled("parent-context");
+    });
+    vi.stubEnv("CAPSULE_STATE_DIR", undefined);
+    vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
+    vi.stubEnv("CAPSULE_FLASH_TOOLS", undefined);
+    try {
+      capsuleExtension(pi as any);
+      const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: root(),
+        modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
+        getSystemPrompt: () => prompt };
+      const delegate = tools[0];
+      await delegate.execute("one", { capsule: "first", output_example: "x" }, undefined, undefined, ctx);
+      prompt = "PARENT_PROMPT_TWO"; active = ["bash", "write", "delegate_capsule", "yield"];
+      configured = [{ name: "bash", sourceInfo: { path: "/tmp/bash-extension.mjs" } },
+        { name: "delegate_capsule", sourceInfo: { path: "/tmp/capsule-extension.mjs" } }];
+      commands = [{ source: "extension", sourceInfo: { path: "/tmp/new-command-extension.mjs" } }];
+      await delegate.execute("two", { capsule: "second", output_example: "x" }, undefined, undefined, ctx);
+      const parents = (run.mock.instances[0] as any).__parents;
+      expect(parents).toHaveLength(2);
+      expect(parents[0]).toEqual({ systemPrompt: "PARENT_PROMPT_ONE",
+        extensionPaths: ["/tmp/read-extension.mjs", "/tmp/command-extension.mjs"], tools: ["read"] });
+      expect(parents[1]).toEqual({ systemPrompt: "PARENT_PROMPT_TWO",
+        extensionPaths: ["/tmp/bash-extension.mjs", "/tmp/new-command-extension.mjs"], tools: ["bash", "write"] });
+    } finally {
+      run.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it.each(["completed", "blocked", "timeout", "error", "cancelled"])("shows independent Flash status through %s", async status => {
     const tools: any[] = [], hooks = new Map<string, any>();
     const setStatus = vi.fn();
@@ -232,6 +316,7 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("PLAIN EXAMPLE"); expect(injected.systemPrompt).toContain(lesson);
     expect(injected.systemPrompt.split("PLAIN EXAMPLE")).toHaveLength(2);
     expect(injected.systemPrompt).toContain(WORKER_CAPSULE_PROMPT);
+    expect(injected.systemPrompt).toContain("Return your report through the yield tool, not a plain-text final answer");
     expect(injected.systemPrompt).toContain("Before yielding, distill verified, reusable project lessons from this run");
     expect(injected.systemPrompt).toContain("for the harness to persist, not the parent-facing result");
     expect(injected.systemPrompt).toContain("Use [] if none");

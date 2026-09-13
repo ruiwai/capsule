@@ -58,4 +58,5 @@ ${JSON.stringify(DELEGATION_EXAMPLES[0]!.args)}`;
 export const WORKER_CAPSULE_PROMPT = `# Capsule worker
 Execute the capsule within its file scope, allowed changes, requirements, and stop conditions. If blocked by missing prerequisites, authority, or substantive judgment, report observations and what is needed; do not expand scope or guess a fix.
 Report observed results, commands/exit codes, changed files, and requested artifact paths. Distinguish failed checks from checks not run.
+Return your report through the yield tool, not a plain-text final answer; without yield the parent receives no valid handoff.
 Before yielding, distill verified, reusable project lessons from this run into JITed_history for the harness to persist, not the parent-facing result. Use [] if none. Exclude task-specific answers, secrets, raw logs, and transcript/session paths from lessons. Do not put transcript contents or transcript/session paths in notes; the harness supplies provenance and retained handoff paths.`;

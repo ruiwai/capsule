@@ -1,7 +1,7 @@
 import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, type ExtensionAPI, type InlineExtension, type ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { mkdir } from "node:fs/promises";
 import { YieldParameters, validateYield, type YieldArgs } from "./contracts.js";
-import { WORKER_CAPSULE_PROMPT } from "./prompts.js";
+import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "./prompts.js";
 
 export type TranscriptRecord = { type: string; [key: string]: unknown };
 export type BackendOutcome = {
@@ -30,15 +30,18 @@ export interface CapsuleBackend {
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
 export const DEFAULT_FLASH_MODEL = "openai-codex/gpt-5.6-luna";
+export type ParentWorkerContext = { systemPrompt: string; extensionPaths: string[]; tools: string[] };
 export type PiBackendOptions = {
   cwd: string; stateDir: string; model: PiModel; tools: string[];
+  /** Read anew for each delegation so prompt/tool changes are not cached. */
+  parentContext?: () => ParentWorkerContext;
 };
 
 export type WorkerHandoffState = { packet?: YieldArgs; hooksRan: boolean; duplicate: boolean };
 
 /** Worker-only extension factory, exported so its real hook/tool boundary can be tested. */
 export function createWorkerExtension(
-  input: { outputExample: string; jit: Array<{ topic: string; content: string; raw_history: string }> },
+  input: { outputExample: string; jit: Array<{ topic: string; content: string; raw_history: string }>; parentSystemPrompt?: string },
   state: WorkerHandoffState,
 ): InlineExtension {
   return (pi: ExtensionAPI) => {
@@ -47,7 +50,10 @@ export function createWorkerExtension(
       const lessons = input.jit.length
         ? input.jit.map(x => `### ${x.topic}\n${x.content}\nProvenance: ${x.raw_history}`).join("\n\n")
         : "(none selected)";
-      return { systemPrompt: `${event.systemPrompt}\n\n${WORKER_CAPSULE_PROMPT}\n\n# Output example (format only; not a schema or an answer to copy)\n${input.outputExample}\n\n# Selected project JIT knowledge (verify applicability)\n${lessons}` };
+      // This factory runs last: prompt-replacing extensions (such as poor) must
+      // not erase inherited instructions or the worker's terminal protocol.
+      const base = (input.parentSystemPrompt ?? event.systemPrompt).replace(PARENT_CAPSULE_PROMPT, "");
+      return { systemPrompt: `${base}\n\n${WORKER_CAPSULE_PROMPT}\n\n# Output example (format only; not a schema or an answer to copy)\n${input.outputExample}\n\n# Selected project JIT knowledge (verify applicability)\n${lessons}` };
     });
     pi.registerTool({
       name: "yield", label: "Yield to the parent agent",
@@ -69,7 +75,8 @@ export class PiSdkBackend implements CapsuleBackend {
   async run(input: Parameters<CapsuleBackend["run"]>[0]): Promise<BackendOutcome> {
     const records: TranscriptRecord[] = [];
     const handoff: WorkerHandoffState = { hooksRan: false, duplicate: false };
-    const workerExtension = createWorkerExtension(input, handoff);
+    const parent = this.options.parentContext?.();
+    const workerExtension = createWorkerExtension({ ...input, parentSystemPrompt: parent?.systemPrompt }, handoff);
     let resolveInterrupted!: () => void;
     const interrupted = new Promise<void>(resolve => { resolveInterrupted = resolve; });
     const onInterrupted = () => resolveInterrupted();
@@ -85,14 +92,18 @@ export class PiSdkBackend implements CapsuleBackend {
     if (await stage(mkdir(this.options.stateDir, { recursive: true, mode: 0o700 })) === undefined && input.signal.aborted)
       return early({ kind: "interrupted", records, hooksRan: false, cleanupConfirmed: true });
     const loader = new DefaultResourceLoader({ cwd: this.options.cwd, agentDir: getAgentDir(),
+      additionalExtensionPaths: parent?.extensionPaths,
       extensionFactories: [workerExtension], noExtensions: true, noSkills: true, noPromptTemplates: true,
       noContextFiles: true });
     if (await stage(loader.reload()) === undefined && input.signal.aborted)
       return early({ kind: "interrupted", records, hooksRan: false, cleanupConfirmed: false,
         notes: "Worker resource setup did not settle during termination." });
+    const extensionErrors = loader.getExtensions().errors;
+    if (extensionErrors.length) return early({ kind: "error", records, hooksRan: false,
+      notes: `Worker extensions failed to load: ${extensionErrors.map(x => `${x.path}: ${x.error}`).join("; ")}` });
     const manager = SessionManager.create(this.options.cwd, this.options.stateDir);
     const creating = createAgentSession({ cwd: this.options.cwd, model: this.options.model,
-      tools: [...this.options.tools, "yield"], excludeTools: ["delegate_capsule"],
+      tools: [...(parent?.tools ?? this.options.tools), "yield"], excludeTools: ["delegate_capsule"],
       resourceLoader: loader, sessionManager: manager });
     const created = await stage(creating);
     if (!created) {

@@ -85,9 +85,17 @@ environment:
 
 ```sh
 npm run build
-export CAPSULE_FLASH_TOOLS='read,bash,edit,write'
 pi
 ```
+
+Flash inherits the parent's current effective system instructions and active tools
+(except delegation), and reloads file-backed extensions identified by parent tool
+and command source metadata, including CLI-loaded `poor`. Worker handoff instructions
+are applied last, even when an extension replaces the system prompt. Parent-only
+Capsule orchestration instructions are removed. `CAPSULE_FLASH_TOOLS` can explicitly
+override the inherited tool list. Hook-only and inline extensions are not exposed
+by Pi's tool/command metadata: their effective system instructions are inherited,
+but their runtime hooks cannot be cloned through this API.
 
 Trust the project when Pi asks so `.pi/settings.json` can take effect. To select
 a different Flash, export `CAPSULE_FLASH_MODEL='provider/model-id'`. When set,

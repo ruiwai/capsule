@@ -9,6 +9,7 @@ import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
 import { installCapsuleFooter, type FlashTelemetry } from "./footer.js";
+import { captureParentContext } from "./parent-context.js";
 
 /** Both adapters use this boundary; caller identity comes only from trusted
  * operator configuration, never from a model-supplied issuer field. */
@@ -91,13 +92,14 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           // fallback result.
           workerIdentity = undefined;
           const model = resolveConfiguredModel(ctx.modelRegistry, process.env.CAPSULE_FLASH_MODEL);
-          const tools = (process.env.CAPSULE_FLASH_TOOLS ?? "read,bash,edit,write").split(",").map(x => x.trim()).filter(Boolean);
+          const toolOverride = process.env.CAPSULE_FLASH_TOOLS?.split(",").map(x => x.trim()).filter(Boolean);
           workerIdentity = { workerProvider: model.provider, workerModel: model.id };
           const stateRoot = process.env.CAPSULE_STATE_DIR;
           if (stateRoot && !isAbsolute(stateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");
           const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
           if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_FLASH_TIMEOUT_MS must be a representable positive integer");
-          const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: stateRoot ? `${stateRoot}/worker-sessions` : `${ctx.cwd}/.pi/capsule/worker-sessions`, model, tools });
+          const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: stateRoot ? `${stateRoot}/worker-sessions` : `${ctx.cwd}/.pi/capsule/worker-sessions`,
+            model, tools: toolOverride ?? [], parentContext: () => captureParentContext(pi, ctx, toolOverride) });
           const generation = sessionGeneration;
           service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs,
             onTelemetry: telemetry => {
