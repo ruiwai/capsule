@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "checkedOn": "2026-09-13",
+  "scope": "Read-only raw-source hash and selected raw event locator verification during specification drafting",
+  "workspaceRoot": "/home/hilaolu/.codex/multica-sessions/default",
+  "verifiedSources": [
+    {
+      "sourceId": "S006",
+      "relativePath": "64cacffe-951f-4a22-b3cc-5114c34b7954/01a08257-cb29-73ca-8e1a-9bcfa3dbf55c/2026/09/09/rollout-2026-09-09T02-51-49-01a0825c-b8e5-7451-be95-fa5c757a1235.jsonl",
+      "sha256": "984755c66a0694e9ebdc9da90ecddcc77f6e0c061b54bfff19185dbf3b39188b",
+      "matchesPriorInventory": true,
+      "rawLineMetadataChecked": [
+        344,
+        356,
+        374,
+        381,
+        392,
+        400,
+        405,
+        410,
+        418,
+        481,
+        503,
+        525,
+        529
+      ]
+    },
+    {
+      "sourceId": "S020",
+      "relativePath": "64cacffe-951f-4a22-b3cc-5114c34b7954/01a084e8-2f6e-7164-b889-bbcf96e8e3f8/2026/09/09/rollout-2026-09-09T14-46-30-01a084eb-05d2-7260-b5f5-ab64477fa475.jsonl",
+      "sha256": "bb79b2e69c7621835145cfa7c69677083fc256ace71c88022b6938d888a90148",
+      "matchesPriorInventory": true,
+      "rawLineMetadataChecked": [
+        35,
+        55,
+        58,
+        63,
+        191,
+        263,
+        424,
+        428,
+        431,
+        436
+      ]
+    }
+  ],
+  "limits": [
+    "Does not rerun historical commands.",
+    "Does not verify the historical project filesystem state.",
+    "S044 details are carried from prior study/raw checks; not rehashed in this drafting pass.",
+    "No new all-205-file verification is claimed; the prior study contains that record."
+  ]
+}

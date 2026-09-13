@@ -1,0 +1,139 @@
+Help me audit and formalize a pi agent based context engineering plugin plan. 1) read through 2) evaluate 3) think if there is existing work/repo/paper target this problem
+
+I love astra, however  it costs 20x of luna, running out my token. I am always wondering what the value of astra is. I appreciate its capability, taste, knowledge, architecture design, high quality patch, but not pricing. Astra should focus on the task that making it unique, making sharp analysis and key decisions.
+
+Each round tool call need a cache read burdening all previous history, while most of them are unrelated to the tool call, and multiple round of tool call exacerbate the problem, where cache read dominate cost composition even with 0.1x hit discount. 
+
+A/ encourage user to pack multiple request in a single prompt, and openai codex support patching multiple files in a single apply_patch call. however dependence of further tool call result prevent astra fire everything in a single call, on agent settings. 
+
+the solution is to offload/delegate specific task and decision flow to luna for task that need looping bash, edit, read output, to save expense of multiple round cache read. it is impled by context injecting but not simply prompting like subagent. Subagent does cut cost, but single way, handoff, without feedback, verify and reuse.
+
+like senior PI vibing his students and postdoc follow; or a $1B CEO vibing $1M VP, $1M VP vibe $50K director, director vibe  $20K leader, leader vibe $10K dev, dev vibe $1K astra. $1B CEO should not always wasting his limited decision resources on fighting with bash.
+
+To demonstrate the idea, consider a made up context stack while running some /goal.
+
+| Astra                              |     | Cost                                 |
+| ---------------------------------- | --- | ------------------------------------ |
+| read prompt                        |     |                                      |
+| read \*.md*<br>according to prompt |     |                                      |
+| tree dir                           |     |                                      |
+| rg files                           |     |                                      |
+| sed -L for needle in stack         |     | cache read                           |
+| hack hack hack                     |     | cache read every round + patch write |
+| fighting with nix develop<br>      |     | cache read every round               |
+| search file/web/docs               |     | cache read every round + patch write |
+| tweak failed apply patch<br>       |     | cache read every round + patch write |
+| making cargo clippy happy          |     | cache read every round + patch write |
+| tunning cmd arg<br>                |     | cache read every round               |
+| run test                           |     | cache read every round               |
+| ...<br>                            |     |                                      |
+| git commit                         |     | cache read every round               |
+
+in a supervised delegate/offload manner,
+
+
+
+| Astra                                                                                               | Luna                                                                                   | Cost                                        |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------- |
+| read prompt                                                                                         |                                                                                        | negligible                                  |
+| read \*.md*<br>according to prompt<br>                                                              |                                                                                        | negligible                                  |
+| make key decision, generate context for luna                                                        | get key decision and instructions                                                      | negligible                                  |
+|                                                                                                     | rg files, needle in stack,sed -L                                                       | negligible                                  |
+|                                                                                                     | return information to astra                                                            |                                             |
+| analyze and modify all file at once with openai codex apply_patch interface, regen context for luna | get self contained key decision and instructions                                       | write                                       |
+| <br>                                                                                                | fighting with nix develop, report information to astra,JIT* and clean previous context | cheap cache read every round, write finally |
+| get info from luna                                                                                  |                                                                                        | read                                        |
+| tweak failed apply patch<br>                                                                        | get self contained key decision and instructions                                       | cache read + write                          |
+|                                                                                                     | making cargo clippy happy                                                              | cheap                                       |
+| <br>                                                                                                | tunning cmd arg                                                                        | cheap                                       |
+|                                                                                                     | run test                                                                               | cheap                                       |
+| read report + check against specs + commit                                                          | gen final report, JIT.                                                                 | single big read                             |
+|                                                                                                     |                                                                                        |                                             |
+
+
+JIT is another skill made by myself for optimizing skills. with some modification, it is also useful on optimizing and distill know-hows in context history.
+
+```
+# JIT Workflow Optimization
+
+Keep execution just-in-time: expose the common safe path first and load depth only when current evidence requires it.
+
+## TL;DR
+
+1. Start with the smallest safe action that can produce useful evidence or the result.
+2. Keep the common 80% path in the first screen: canonical action, minimum safety guard, and decisive verification.
+3. Batch independent calls; serialize only real dependencies.
+4. Branch from actual output, not speculative preflight.
+5. Close the loop at best effort: verify the exact result, then smoke-test the affected path when possible.
+6. Stop when the acceptance boundary is proved; if a smoke test is not feasible, state the limitation.
+7. After recurring friction, patch the owning skill with the smallest verified lesson.
+
+Every procedural `SKILL.md` is a **hot execution index**, not a manual. It must keep the executable TL;DR at its head. Put each cold layer in a separate linked file:
+
+- detailed procedures and fallbacks → `references/man-path.md`
+- inventories, matrices, and exhaustive lists → `references/catalogue.md`
+- definitions and terminology → `references/dictionary.md`
+
+Do not read those files automatically. Consult only the specific file—and preferably the specific section—triggered by ambiguity, failure, an uncommon branch, or an explicit request for detail.
+
+## When to Use
+
+Load this skill in every chat so JIT remains active. Apply it whenever tools, skills, repeated procedures, or uncertain execution paths are involved.
+
+Do not use JIT to skip safety checks, guess missing context, or weaken verification.
+
+## Locality and 80/20
+
+- **80/20:** optimize the first 20% of a skill for the common 80% case.
+- **Temporal locality:** keep instructions used consecutively near each other; promote repeatedly needed cold fragments into the TL;DR.
+- **Spatial locality:** co-locate common commands, decision criteria, and verification; isolate rare detail in linked files.
+- **Demotion:** move cold TL;DR branches back into the appropriate reference file.
+
+Safety-critical checks stay in the TL;DR whenever omission could cause harm, corruption, credential exposure, or an incorrect external write.
+
+## Decision Points
+
+- If the fast path succeeds, verify and stop; do not open references.
+- If it fails or becomes ambiguous, consult the relevant section of [the MAN path](references/man-path.md).
+- If an exact command, option, compatibility entry, or failure signature is needed, consult [the catalogue](references/catalogue.md).
+- If a term is unclear or distinctions affect execution, consult [the dictionary](references/dictionary.md).
+- If the workflow required repeated retries, long mechanical call chains, or a non-obvious workaround, use the skill-improvement procedure in the MAN path after completing the user's task.
+
+## Verification
+
+Before finishing, confirm:
+
+- the requested result or external state is verified;
+- the affected path was smoke-tested when feasible, or the reason it was not is stated;
+- the common path did not load cold reference material without a trigger;
+- retries changed strategy or gathered new evidence;
+- recurring, verified friction was patched into the owning skill;
+- optimization preserved required safety and environment checks.
+
+```
+
+
+for example, consider luna is fighting with nix
+
+- sys prompt 
+- JITed history of cargo 
+- JITed history of project
+- astra injected context about task
+- erorr log
+- failed trial 
+- fighting with nix develop 
+
+after luna reach some gate to report back to astra, it write something like
+
+{
+   "report":"...."
+   "JITed_history":"use LD_LIBRARY_PATH=/nix/store....; use nix develop..."
+}
+
+then the stack will be rebuilt like this, ready for next delegate
+
+- sys prompt 
+- JITed history of cargo 
+- JITed history of project
+- JITed history of nix develop (with "raw_history":"/tmp/uuid.jsonl")
+

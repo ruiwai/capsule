@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "YieldArgs",
+  "description": "Luna's v1 yield input. Require a sole final tool call and unique topic keys in handler logic; schema validity does not certify the contents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reason", "report", "JITed_history"],
+  "properties": {
+    "reason": {
+      "type": "string",
+      "enum": ["completed", "needs_decision", "blocked"],
+      "description": "Why Luna is returning. Completed means the requested gate was reached, not that every check passed."
+    },
+    "report": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12000,
+      "pattern": "\\S",
+      "description": "Markdown report for Astra: observed result, verification, changes, unresolved issues, and any decision needed."
+    },
+    "JITed_history": {
+      "type": "array",
+      "maxItems": 8,
+      "description": "Project-local topic updates. Empty means no update. Omitted topics remain unchanged. The plugin supplies archive provenance separately.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["topic", "content"],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "description": "Stable project-local topic key, not a filesystem path."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "pattern": "\\S",
+            "description": "Complete replacement lesson for this topic: applicability, procedure, minimum guard, and decisive verification. Not a permission grant or raw transcript."
+          }
+        }
+      }
+    }
+  }
+}

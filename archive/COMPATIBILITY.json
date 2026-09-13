@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-13T11:33:37Z",
+  "platform": "Linux-x86_64",
+  "node": {
+    "executable": "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+    "version": "v22.23.2"
+  },
+  "pi": {
+    "executable": "/nix/store/m58mjsdjgk3zrwar1ckw2lb4q241l7j9-pi-coding-agent-0.85.1/bin/pi",
+    "version": "0.85.1",
+    "package": "@earendil-works/pi-coding-agent",
+    "packageVersion": "0.85.1",
+    "installedPackageJsonSha256": "f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c",
+    "npmLockIntegrity": "sha512-FGRN+OHbWaefBPGaTggAdLjrIHW+s2PzLyglz/5dfLzb9of7uuXMXYC0fJIeZTw+shS32o2cuQ9jF7YSDuL/oQ=="
+  },
+  "sdkCapabilities": {
+    "createAgentSession": true,
+    "sessionSubscribe": true,
+    "sessionPromptAbort": true,
+    "customTools": true,
+    "explicitToolAllowlist": true,
+    "noToolsAll": true,
+    "customResourceLoader": true,
+    "inMemoryFreshSession": true
+  },
+  "verifiedWorker": {
+    "provider": "openai-codex",
+    "model": "gpt-5.6-luna",
+    "fallbackAllowed": false,
+    "activeTools": ["context_read"],
+    "inheritedSkills": [],
+    "inheritedContextFiles": [],
+    "providerInternalRetryVisibility": "unknown"
+  }
+}

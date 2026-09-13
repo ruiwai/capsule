@@ -9,7 +9,7 @@ import { fixture, action, decision } from "./scripted-fixture.js";
 import { ScriptedService } from "../src/controller/scripted.js";
 import { EvidenceStore } from "../src/evidence/store.js";
 import { execute } from "../src/execution/spawn.js";
-import extension from "../src/extension/index.js";
+import { scriptedExtension as extension } from "../src/extension/index.js";
 import { identity } from "../src/controller/scripted-contract.js";
 
 const output = process.env.CAPSULE_RESULTS ?? mkdtempSync(join(tmpdir(), "capsule-acceptance-results-"));

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+demo-results/*/uv-environment/
+demo-results/*/uv-cache/
+.pi/capsule/
+.pi/capsule-live/

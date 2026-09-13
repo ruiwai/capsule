@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DelegateCapsuleResult",
+  "description": "Plugin-generated return to Astra's original delegate_capsule call. This is an output envelope, not another tool's parameters.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reply", "raw_history"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "yielded"
+        },
+        "reply": {
+          "$ref": "yield.schema.json"
+        },
+        "raw_history": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Absolute filesystem path to the actual retained UTF-8 JSONL episode transcript. Never transcript text, encoded bytes, a URI, session ID, or placeholder. Runtime code verifies that the file exists and is readable."
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "report", "raw_history"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["cancelled", "timeout", "error"]
+        },
+        "report": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Plugin-authored account of known observations, missing parts, and the runtime failure."
+        },
+        "raw_history": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Absolute filesystem path to the readable retained partial UTF-8 JSONL transcript when available; null otherwise. Never transcript contents or an invented path. Runtime code verifies existence and readability."
+        }
+      }
+    }
+  ]
+}
