@@ -74,7 +74,7 @@ export class CapsuleService {
       // Retain observations during bounded cleanup too, but never publish a late handoff/JIT.
       try { state.transcript = await this.retain(outcome.records); }
       catch (error) {
-        return { cleanupConfirmed, value: { status: "error", notes: `Transcript retention failed. No result or new JIT was published, and Flagship must resolve storage before retrying: ${String(error)}` } };
+        return { cleanupConfirmed, value: { status: "error", notes: `Transcript retention failed. No result or new JIT was published, and the parent agent must resolve storage before retrying: ${String(error)}` } };
       }
       if (signal.aborted) return { cleanupConfirmed };
       if (outcome.kind !== "settled" || !outcome.yield) {
@@ -148,7 +148,7 @@ export class CapsuleService {
       else void work.then(value => { if (value.cleanupConfirmed) release(); }, () => {});
       if (winner.kind === "interrupted") throw Object.assign(Error("Capsule delegation interrupted by user"), { name: "AbortError" });
       const seconds = timeoutMs / 1000;
-      const value: DelegateCapsuleResult = { status: "timeout", notes: `The ${seconds}-second deadline expired before a complete result was ready. No task answer or new JIT was published. ${confirmed ? "Owned worker cleanup completed; Flagship may inspect the partial history and retry or revise the capsule." : `Termination or storage cleanup was not confirmed within the ${cleanupMs / 1000}-second allowance; do not overlap another delegation in this workspace, and restart or verify the runtime before retrying.`}` };
+      const value: DelegateCapsuleResult = { status: "timeout", notes: `The ${seconds}-second deadline expired before a complete result was ready. No task answer or new JIT was published. ${confirmed ? "Owned worker cleanup completed; the parent agent may inspect the partial history and retry or revise the capsule." : `Termination or storage cleanup was not confirmed within the ${cleanupMs / 1000}-second allowance; do not overlap another delegation in this workspace, and restart or verify the runtime before retrying.`}` };
       if (state.transcript) value.raw_history = state.transcript;
       return value;
     } finally {

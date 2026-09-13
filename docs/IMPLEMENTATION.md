@@ -40,10 +40,10 @@ the compatibility check for the scripted path.
 
 ## Development setup and verification
 
-The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings
-default Flagship to `openai-codex/gpt-6-astra` and load the extension. Flash defaults
+The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings load the extension only. The Pi user-selected model remains the
+the parent agent and orchestrator; the plugin never selects or switches it. Flash defaults
 to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_FLASH_MODEL=provider/model-id`
-overrides it. `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and absolute
+overrides it independently. `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and absolute
 project-contained `CAPSULE_STATE_DIR` retain their documented behavior.
 Authentication comes from normal Pi config.
 

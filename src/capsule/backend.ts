@@ -39,7 +39,7 @@ export function createWorkerExtension(
       return { systemPrompt: `${event.systemPrompt}\n\n# Capsule worker handoff\nUse ordinary tools adaptively. Call yield as the sole final tool call. Do not continue after yield. The plugin, not you, supplies retained paths. Never put transcript contents or transcript/session paths in notes or JITed_history. A completed yield requires result; a blocked yield requires explanatory notes and has no result.\n\n# Output example (format guidance only)\nPreserve this guidance as written. Its values illustrate format and are not an answer to copy. It is not a schema and your result is not checked against it.\n${input.outputExample}\n\n# Selected project JIT knowledge\n${lessons}` };
     });
     pi.registerTool({
-      name: "yield", label: "Yield to Flagship",
+      name: "yield", label: "Yield to the parent agent",
       description: "Return the terminal delegation handoff. This must be the sole final tool call.",
       parameters: YieldParameters,
       async execute(_id, args) {

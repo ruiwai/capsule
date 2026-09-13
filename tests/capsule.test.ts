@@ -4,7 +4,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import capsuleExtension from "../src/extension/index.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
@@ -82,7 +82,7 @@ describe("refined Capsule lifecycle", () => {
   });
 
   it("returns blockers inline without result or notes_path", async () => {
-    const packet: YieldArgs = { reason: "blocked", notes: "Service is unavailable; no answer was established. Flagship must decide whether to start it.", JITed_history: [] };
+    const packet: YieldArgs = { reason: "blocked", notes: "Service is unavailable; no answer was established. The parent agent must decide whether to start it.", JITed_history: [] };
     const result = await new CapsuleService(new RecordingBackend([settled("partial", packet)]), { projectRoot: root() })
       .delegate({ capsule: "work", output_example: "Say yes or no" });
     expect(result).toMatchObject({ status: "blocked", notes: packet.notes });
@@ -139,9 +139,10 @@ describe("refined Capsule lifecycle", () => {
 });
 
 describe("parent/child tool separation", () => {
-  it("configures Flagship and Flash defaults while retaining the Flash override", async () => {
+  it("leaves the Pi-selected parent model alone and retains the independent Flash default/override", async () => {
     const settings = JSON.parse(await readFile(join(process.cwd(), ".pi", "settings.json"), "utf8"));
-    expect(settings).toMatchObject({ defaultProvider: "openai-codex", defaultModel: "gpt-6-astra" });
+    expect(settings).not.toHaveProperty("defaultProvider");
+    expect(settings).not.toHaveProperty("defaultModel");
     expect(settings.extensions).toContain("../src/extension/index.ts");
     expect(DEFAULT_FLASH_MODEL).toBe("openai-codex/gpt-5.6-luna");
     const finds: string[] = [], registry = { find(provider: string, id: string) { finds.push(`${provider}/${id}`); return { provider, id }; } };
@@ -149,7 +150,7 @@ describe("parent/child tool separation", () => {
     expect(resolveConfiguredModel(registry as any, "other/custom")).toMatchObject({ provider: "other", id: "custom" });
     expect(finds).toEqual(["openai-codex/gpt-5.6-luna", "other/custom"]);
   });
-  it("registers only delegate_capsule in Flagship", () => {
+  it("registers only delegate_capsule for the parent agent", () => {
     const tools: any[] = []; capsuleExtension({ registerTool: (tool: any) => tools.push(tool) } as any);
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
   });
@@ -162,5 +163,28 @@ describe("parent/child tool separation", () => {
     expect(tools.map(x => x.name)).toEqual(["yield"]);
     expect((await tools[0].execute("yield-1", handoff)).terminate).toBe(true);
     await expect(tools[0].execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
+  });
+  it.each([undefined, "other/custom"])("keeps parent model ownership with Flash configured as %s", async configured => {
+    const tools: any[] = [], setModel = vi.fn();
+    const parentModel = vi.fn(() => ({ provider: "user", id: "selected" }));
+    const find = vi.fn((provider: string, id: string) => ({ provider, id }));
+    const delegate = vi.spyOn(CapsuleService.prototype, "delegate")
+      .mockResolvedValue({ status: "error", notes: "Stubbed delegation; no provider call." });
+    vi.stubEnv("CAPSULE_FLASH_MODEL", configured);
+    vi.stubEnv("CAPSULE_STATE_DIR", undefined);
+    vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
+    try {
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), setModel } as any);
+      const ctx = { cwd: process.cwd(), modelRegistry: { find }, get model() { return parentModel(); } };
+      const args = { capsule: "work", output_example: "Answer briefly" };
+      await tools[0].execute("delegate-1", args, undefined, undefined, ctx);
+      expect(find).toHaveBeenCalledExactlyOnceWith(...(configured ?? DEFAULT_FLASH_MODEL).split("/"));
+      expect(delegate).toHaveBeenCalledExactlyOnceWith(args, undefined);
+      expect(setModel).not.toHaveBeenCalled();
+      expect(parentModel).not.toHaveBeenCalled();
+    } finally {
+      delegate.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });

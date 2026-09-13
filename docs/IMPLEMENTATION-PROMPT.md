@@ -18,9 +18,15 @@ containment and child-hook checks. Do not reset, clean, stage, or commit. Keep
 the legacy scripted path separate; do not weaken it or route this work through
 its command registry. Reuse the existing Pi SDK/subagent integration and hooks.
 
+## Parent model ownership
+
+The Pi user-selected model is the parent agent and orchestrator. The plugin must never
+select or switch that parent model; configure Flash independently through its
+existing model resolution and `CAPSULE_FLASH_MODEL` override.
+
 ## Exact small interface
 
-Flagship's only additional tool:
+The parent agent's only additional tool:
 
     delegate_capsule({
       capsule: string,
@@ -40,7 +46,7 @@ output_example is nonblank text guidance, not a formal schema. It may contain
 example JSON or plain text. Preserve it unchanged and tell Flash that example
 values illustrate format, not the required answer. Do not parse/compile it,
 infer types, validate the answer against it, coerce values, strip answer fields,
-or add an output-format repair loop. Trust Flash's result; Flagship reviews it.
+or add an output-format repair loop. Trust Flash's result; the parent agent reviews it.
 
 Flash's only additional handoff tool:
 
@@ -52,7 +58,7 @@ Flash's only additional handoff tool:
     })
 
 Require result on completed handoffs, but do not constrain its internal shape.
-Require nonblank notes and omit result on blocked handoffs. Needing Flagship's
+Require nonblank notes and omit result on blocked handoffs. Needing the parent agent's
 judgment is blocked. [] is valid JIT. Validate only the fixed tool envelope and
 existing JIT storage rules; do not introduce generic Result<T>/Option<T> machinery.
 Keep normal tools available under runtime permissions and prevent recursion.
@@ -89,7 +95,7 @@ observations without waiting for Flash. Even archive failure must return notes.
 A completed {"ok":false} is an established negative answer, not a failed
 invocation. A timeout or blocker must not invent false as the answer.
 Remove the old report/reply/yielded envelope and public needs_decision/cancelled
-statuses. Preserve internal user-abort cleanup without forcing an Flagship turn.
+statuses. Preserve internal user-abort cleanup without forcing a turn from the parent agent.
 
 Explicitly construct the small parent result in the original delegate_capsule
 result's content, not only UI details. Never spread the entire worker/backend
@@ -98,9 +104,9 @@ sendUserMessage/custom message. Do not copy the child's termination flag upward.
 
 ## Files, JIT, and reclaimed context
 
-Both paths are absolute, plugin-generated, readable by Flagship after child cleanup,
+Both paths are absolute, plugin-generated, readable by the parent agent after child cleanup,
 and contain paths only, never bytes, encoded content, previews, or opaque IDs.
-Reuse real transcript artifacts or retain an accessible copy. Flagship can search
+Reuse real transcript artifacts or retain an accessible copy. The parent agent can search
 history with ordinary tools on demand. Do not automatically open attachments.
 Keep success-note, transcript-only, and JIT-only content out of parent context.
 
@@ -108,14 +114,14 @@ Retain project-local JIT topic replacement: topic updates replace that topic,
 omitted topics remain unchanged, and [] leaves knowledge intact. Attach real
 transcript provenance. Keep lessons, guards, and verification, not expired
 permissions. Do not automatically edit global skills. JIT is retained for Flash,
-not forwarded to Flagship. Publish only from valid, timely, settled yields with
+not forwarded to the parent agent. Publish only from valid, timely, settled yields with
 retained provenance; a genuine lesson from a blocked handoff is allowed without
 claiming task success. Timeout, error, interruption, or late/malformed yield
 publishes no JIT. Preserve prior knowledge on storage failures.
 
 Each new worker context contains selected JIT plus the new capsule and output
 example, not the previous capsule/example/transcript. Preserve current-episode
-observations and leave Flagship's own session untouched. Keep existing child hooks
+observations and leave the parent agent's own session untouched. Keep existing child hooks
 and one active delegation; do not build a general memory or routing framework.
 
 ## Real timeout, including cleanup
@@ -157,7 +163,7 @@ Update tests and add fault injection for:
 - Path-only completion: notes/transcript files survive child exit and targeted
   search works; successful notes and JIT/raw-only markers stay out of parent input.
 - Two delegations: new example/capsule plus retained lesson, no previous
-  example/capsule/noise; ordinary observations and Flagship's context survive.
+  example/capsule/noise; ordinary observations and the parent agent's context survive.
 - Normal early yield; never-yielding worker; hung setup/tool; abort that never
   resolves; stuck idle/settlement; hanging archive/JIT I/O; late yield after expiry.
   Check bounded return, actual stop or honest cleanup limitation, no late JIT,

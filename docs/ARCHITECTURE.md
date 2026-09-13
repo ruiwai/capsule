@@ -6,7 +6,9 @@ format and timeout. A runtime already exists; these refinements are pending.
 
 ## Responsibilities
 
-**Flagship** owns task direction, important decisions, semantic judgment, and review.
+**The parent agent** owns task direction, important decisions, semantic judgment, and review.
+It uses the model selected by the user in Pi; the plugin never selects or switches
+that model. Only Flash has a plugin-defined model default and override.
 It supplies a self-contained capsule plus a self-explanatory output example.
 It need not predict every command or describe a formal result type.
 
@@ -22,7 +24,7 @@ not take over Flash's local investigation or become a generalized controller.
 ## One cycle, separate destinations
 
 ```text
-Flagship: delegate_capsule({ capsule, output_example, timeout_s? })
+Parent agent: delegate_capsule({ capsule, output_example, timeout_s? })
                  |
         parent watchdog starts
                  v
@@ -37,7 +39,7 @@ yield({ reason, result?, notes?, JITed_history })
                  |
      +-----------+-------------------+--------------------+
      |                               |                    |
-Flagship tool result              retained files        project JIT
+Parent agent tool result              retained files        project JIT
  completed: result + paths     successful notes      useful lessons
  failed: inline notes + path   raw transcript        + provenance
                                                           |
@@ -46,14 +48,14 @@ Flagship tool result              retained files        project JIT
 Watchdog expiry -> stop work, bounded cleanup, timeout with inline notes
 ```
 
-Do not send the full yield packet back to Flagship. Explicitly project the parent
+Do not send the full yield packet back to the parent agent. Explicitly project the parent
 result: compact answer on completion; mandatory inline cause/partial outcome/
 next action on blocked, timeout, or error. Supplemental successful notes and the
 transcript are reachable by absolute paths. JIT is not automatically returned.
 
 The original pending tool result is the only automatic delivery route. No
 polling, receive tool, second injected message, or copied child termination flag
-is needed. The worker stops; Flagship remains able to continue.
+is needed. The worker stops; the parent agent remains able to continue.
 
 ## Context lifecycle, not process identity
 
@@ -62,7 +64,7 @@ old task direction, output examples, and noisy observations from the next
 model input while retaining the archive. A new session that copies all old
 messages has not reclaimed context; neither has an "ignore previous" message.
 
-Leave Flagship's own conversation intact. Rebuilding context does not undo edits,
+Leave the parent agent's own conversation intact. Rebuilding context does not undo edits,
 replay tools, or establish OS isolation. Runtime tool permissions still apply;
 JIT and task instructions cannot grant additional authority.
 
