@@ -1,2 +1,0 @@
-Current fixture rule: use the workspace source and preserve its lock.
-The package origin must be checked in a fresh process.

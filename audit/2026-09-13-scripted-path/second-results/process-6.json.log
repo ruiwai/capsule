@@ -1,3 +1,0 @@
-{"error":"Error: lifecycle_stop","pid":1871423}
-(node:1871423) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)

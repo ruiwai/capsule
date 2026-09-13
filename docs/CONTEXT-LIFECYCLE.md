@@ -111,7 +111,7 @@ and stop subsequent same-workspace delegation from overlapping that work.
 Internal user interruption still performs cleanup without forcing a turn from the parent agent.
 
 See [interfaces](INTERFACES.md) for field rules and
-[implementation prompt](IMPLEMENTATION-PROMPT.md) for timeout tests.
+[implementation status](IMPLEMENTATION.md) for verification limits.
 
 ## Observable checks
 

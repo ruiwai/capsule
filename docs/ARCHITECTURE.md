@@ -1,8 +1,11 @@
-# Architecture: temporary direction, small returns, reusable lessons
+# Production architecture: small returns, reusable lessons
 
 The [original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the supervised
 context lifecycle. The [current interface](INTERFACES.md) refines the return
-format and timeout. A runtime already exists; these refinements are pending.
+format and timeout. The production source is deliberately split into two
+directories: `src/capsule/` contains contracts, prompts, backend, and service;
+`src/extension/` contains the Pi entrypoint, parent-context integration,
+renderers, and footer. There is no CLI, scripted path, or compatibility layer.
 
 ## Responsibilities
 
@@ -68,10 +71,8 @@ Leave the parent agent's own conversation intact. Rebuilding context does not un
 replay tools, or establish OS isolation. Runtime tool permissions still apply;
 JIT and task instructions cannot grant additional authority.
 
-The existing in-process adapter is a useful starting point, not a requirement
-to tolerate an unbounded wait. Keep supervision in the parent. If a reused
-terminable child runner is needed for effective cancellation, make that narrow
-change without reimplementing Pi's inference or tool machinery.
+The in-process adapter uses Pi's SDK and keeps supervision in the parent. It does
+not reimplement Pi's inference or tool machinery.
 
 ## Thin but bounded
 
@@ -86,6 +87,4 @@ may inject another result or publish JIT after timeout. Do not start overlapping
 work if termination of the prior worker is unconfirmed.
 
 See [Pi integration](PI-INTEGRATION.md) for hook boundaries and
-[implementation status](IMPLEMENTATION.md) for the concrete current gaps. The
-legacy scripted service remains separate; its registry and ledger do not define
-this context-first path.
+[implementation status](IMPLEMENTATION.md) for verification limits.

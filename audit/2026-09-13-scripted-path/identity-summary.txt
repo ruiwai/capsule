@@ -1,2 +1,0 @@
-4676b4d126707152e76517e263027354f984ed10725660b02e8bc493945fbb90  audit/2026-09-13-scripted-path/implementation.sha256
-89738eb63fa56eaf0f9c2f6983cafb1f45717a4e5ac8c6d0e68607dd554f2be5  audit/2026-09-13-scripted-path/implementation.patch

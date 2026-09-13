@@ -1,3 +1,0 @@
-{"error":"Error: budget_exhausted: deadline/command allowance","pid":1876806}
-(node:1876806) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)

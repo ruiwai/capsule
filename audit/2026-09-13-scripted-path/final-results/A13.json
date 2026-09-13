@@ -1,9 +1,0 @@
-{
-  "classification": "synthetic executed acceptance",
-  "result": "PASS",
-  "value": {
-    "task": "task_ad93bbc4-649b-47f7-b7e0-5eb6d42e09d5",
-    "indexedExecution": "exec_5afef5d7-7c13-493b-96f4-21a0e93d1163",
-    "symlink": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-NTv5je/foreign-evidence"
-  }
-}

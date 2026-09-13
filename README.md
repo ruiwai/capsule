@@ -14,6 +14,14 @@ example-guided contract, asymmetric parent return, retained artifacts, internal
 JIT, and parent-owned watchdog described below. See
 [implementation status](docs/IMPLEMENTATION.md).
 
+## Production architecture
+
+The production implementation has two source directories. `src/capsule/`
+contains the contracts, prompt construction, Pi backend, and delegation service.
+`src/extension/` contains the Pi entrypoint, parent-context integration, custom
+renderers, and footer. There is no CLI, scripted execution path, or compatibility
+layer.
+
 ## Two tools, a small answer
 
 In Pi's TUI, `delegate_capsule` uses a compact custom renderer: the call shows a bounded Markdown capsule preview, Flash model, and optional timeout; results show the meaningful answer or inline failure notes. Expand a result to see retained notes/history paths (never their contents). The model-facing JSON content contract is unchanged.
@@ -71,10 +79,8 @@ Do not reset the parent agent's conversation. Prompt guidance is not an OS sandb
 
 ## Development and documentation
 
-Start with [interfaces](docs/INTERFACES.md), then the
-[refinement prompt](docs/IMPLEMENTATION-PROMPT.md). The
+Start with [interfaces](docs/INTERFACES.md). The
 [documentation index](docs/README.md) links architecture, lifecycle, and Pi hooks.
-Reuse the existing Pi SDK/subagent design rather than adding another controller.
 
 The Pi user-selected model remains the parent agent and orchestrator; this
 plugin never selects or switches it. Flash is configured independently and
@@ -96,7 +102,7 @@ pi
 
 Flash inherits the parent's current effective system instructions and active tools
 (except delegation), and reloads file-backed extensions identified by parent tool
-and command source metadata, including CLI-loaded `poor`. Worker handoff instructions
+and command source metadata. Worker handoff instructions
 are applied last, even when an extension replaces the system prompt. Parent-only
 Capsule orchestration instructions are removed. `CAPSULE_FLASH_TOOLS` can explicitly
 override the inherited tool list. Hook-only and inline extensions are not exposed
@@ -107,14 +113,4 @@ Trust the project when Pi asks so `.pi/settings.json` can take effect. To select
 a different Flash, export `CAPSULE_FLASH_MODEL='provider/model-id'`. When set,
 `CAPSULE_STATE_DIR` must be absolute, readable by the parent agent, and inside the project;
 preserve this existing containment restriction. Run `npm test` for repository
-tests; `npm run test:acceptance` still targets the legacy scripted suites and is
-not proof of live provider behavior.
-
-## History
-
-Former docs remain in [archive/](archive/README.md), including the
-[previous README](archive/PREVIOUS-PROJECT-README.md) and
-[scripted-path guide](archive/SCRIPTED-PATH.md). They are historical, not the new
-interface requirements. Source and automated tests implement the current
-interface; archives, original proposal, audit evidence, and the separate scripted
-path remain preserved.
+provider test.

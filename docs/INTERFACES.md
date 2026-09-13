@@ -1,8 +1,7 @@
 # Two tools, example-guided output, bounded execution
 
 **Implemented contract: 14 September 2026.** See
-[implementation status](IMPLEMENTATION.md) and the
-[agent implementation prompt](IMPLEMENTATION-PROMPT.md).
+[implementation status](IMPLEMENTATION.md).
 
 ```text
 Parent agent: delegate_capsule({ capsule, output_example, timeout_s? })

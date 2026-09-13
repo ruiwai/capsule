@@ -1,8 +1,7 @@
 # Implementation status
 
-**Implemented and exercised: 14 September 2026, with pre-existing working-tree
-changes preserved.** Capsule remains the existing context-first Pi SDK adapter;
-the legacy scripted controller is separate.
+**Implemented: 14 September 2026, with pre-existing working-tree changes
+preserved.** Capsule is the production Pi SDK adapter.
 
 ## Current behavior
 
@@ -35,13 +34,12 @@ The fault backends are deterministic/cooperative test doubles. Hook tests execut
 the real inline extension boundary, but no authenticated live-model call or
 deliberately hung real provider/tool process was run in this implementation pass.
 Accordingly, these tests establish service supervision and SDK API wiring, not a
-hard process-isolation guarantee. The separate legacy acceptance suite remains
-the compatibility check for the scripted path.
+hard process-isolation guarantee.
 
 ## Development setup and verification
 
 The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings load the extension only. The Pi user-selected model remains the
-the parent agent and orchestrator; the plugin never selects or switches it. Flash defaults
+parent agent and orchestrator; the plugin never selects or switches it. Flash defaults
 to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_FLASH_MODEL=provider/model-id`
 overrides it independently. `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and absolute
 project-contained `CAPSULE_STATE_DIR` retain their documented behavior.
@@ -54,13 +52,13 @@ Authentication comes from normal Pi config.
 Run:
 
 ```sh
-npm run build
-./node_modules/.bin/vitest run tests/capsule.test.ts --reporter=verbose
-npm test
-npm run test:acceptance
+npm run check
 ```
 
 See [interfaces](INTERFACES.md), [Pi integration](PI-INTEGRATION.md), and the
 [context lifecycle](CONTEXT-LIFECYCLE.md) for the active contract and boundaries.
-Historical claims and the original proposal remain historical evidence, not
-current live verification.
+The original proposal is design context, not current live verification.
+
+The build clears stale output and emits only `src/` to `dist/`. Type-checking
+also covers tests without emitting them. Architecture tests enforce the single
+Capsule entrypoint and the dependency direction from extension to Capsule.

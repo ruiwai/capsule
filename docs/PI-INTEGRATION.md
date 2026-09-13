@@ -19,15 +19,6 @@ The original design references remain useful:
 | --- | --- |
 | [Pi's shipped subagent example][subagent] | Child dispatch, ordinary tools, progress, and cancellation. |
 | [Pi's structured-output example][structured] | A final tool result that ends the worker loop. |
-| [nicobailon/pi-subagents][subagents] | Alternative public foreground delegation and artifact design. |
-| [mjakl/pi-subagent][mjakl] | Alternative child-session and completion design. |
-
-The latter packages are design references, not selected dependencies. Do not
-switch backend merely to follow an obsolete preferred-package recommendation.
-If the existing in-process adapter cannot provide effective bounded termination,
-adapt a small existing terminable child runner, preserving licenses and Pi's
-model/tool machinery. Do not build multiple backends or use an async-only route
-that makes the parent agent poll for this foreground return. Pin and test any actual change.
 
 ## Hook and boundary map
 
@@ -36,8 +27,9 @@ that makes the parent agent poll for this foreground return. Pin and test any ac
 - Parent: Pi's base/configured prompt and enabled resources → Capsule's short
   `before_agent_start` delegation policy. The tool description owns example
   calls; parameter descriptions own the task-contract fields.
-- Worker: a fresh SDK session using `DefaultResourceLoader`, with external
-  extensions, skills, templates, and context files disabled. Pi's normal
+- Worker: a fresh SDK session using `DefaultResourceLoader`, with selected
+  file-backed parent extensions explicitly loaded. Automatic extension discovery,
+  skills, templates, and context files are disabled. Pi's normal
   SYSTEM.md/APPEND_SYSTEM.md discovery still applies; those overrides are not
   disabled by `noContextFiles`.
 - Worker hook: append bounded-execution/reporting guidance, the verbatim output
@@ -119,12 +111,9 @@ cancellation status.
 ## Source scope
 
 The original proposal defines the product lifecycle; current code establishes
-what exists; the recent user refinements define what changes next. Upstream
-links below are retained references, not freshly verified compatibility claims.
-Prior docs reported a live two-episode run under the old contract. This pass did
-not rerun it, and it does not prove the revised output or timeout behavior.
+what exists. Upstream links below are API references, not live-provider
+verification. Automated coverage and limitations are recorded in
+[implementation status](IMPLEMENTATION.md).
 
 [subagent]: https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent
 [structured]: https://github.com/earendil-works/pi/blob/main/packages/coding-agent/examples/extensions/structured-output.ts
-[subagents]: https://github.com/nicobailon/pi-subagents
-[mjakl]: https://github.com/mjakl/pi-subagent

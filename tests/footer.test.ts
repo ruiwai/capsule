@@ -7,12 +7,12 @@ import capsuleExtension from "../src/extension/index.js";
 const theme = { fg: (_: string, value: string) => value } as any;
 
 describe("Flash footer", () => {
-  it("clears the legacy TUI status rather than adding a duplicate Flash line", async () => {
+  it("uses only the custom footer in TUI mode", async () => {
     const hooks = new Map<string, any>();
     const setStatus = vi.fn(), setFooter = vi.fn();
     capsuleExtension({ on: (name: string, handler: any) => hooks.set(name, handler), registerTool: vi.fn() } as any);
     await hooks.get("session_start")({}, { hasUI: true, mode: "tui", ui: { setStatus, setFooter } });
-    expect(setStatus).toHaveBeenCalledExactlyOnceWith("capsule.flash", undefined);
+    expect(setStatus).not.toHaveBeenCalled();
     expect(setFooter).toHaveBeenCalledOnce();
   });
 

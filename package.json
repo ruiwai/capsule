@@ -3,15 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Evidence-bound Pi delegation controller",
+  "description": "Context-first foreground delegation for Pi",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\" && tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:acceptance": "vitest run tests/scripted.test.ts tests/boundary-refinement.test.ts --reporter=verbose",
-    "check": "npm run build && npm test",
-    "compat": "tsx src/cli.ts compat",
-    "demo": "tsx src/cli.ts demo",
-    "flash-smoke": "tsx src/cli.ts flash-smoke"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "check": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",
@@ -20,7 +17,6 @@
   },
   "devDependencies": {
     "@types/node": "22.19.19",
-    "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vitest": "4.1.9"
   },

@@ -7,7 +7,6 @@ artifacts, internal JIT, and bounded parent-owned watchdog.
 | Read | Purpose |
 | --- | --- |
 | [Interfaces](INTERFACES.md) | Example-guided output, asymmetric notes, path-only history, and explicit timeout. |
-| [Implementation prompt](IMPLEMENTATION-PROMPT.md) | Self-contained instructions to refine the existing implementation. |
 | [Implementation status](IMPLEMENTATION.md) | Implemented behavior, automated checks, and remaining live-test limits. |
 | [Architecture](ARCHITECTURE.md) | The Pi-selected parent agent, Flash, the thin plugin, and the different destinations for outputs. |
 | [Context lifecycle](CONTEXT-LIFECYCLE.md) | Injection, adaptive work, yield, JIT publication, and next-episode input. |
@@ -35,10 +34,6 @@ and successful supplementary notes cold until requested. Keep JIT hot only when
 relevant to the next Flash episode. Neither JIT nor an output example is authority
 to weaken checks, guess results, or retain expired task permissions.
 
-## Preserved history
-
-The former docs are in [archive/](../archive/README.md), and prior execution
-records remain in [audit/](../audit/). Archived paths may describe the old layout.
-Those specifications are historical, not requirements for this refinement.
-The original proposal and prior execution evidence remain unchanged. Current
-automated and live-test coverage is recorded in [implementation status](IMPLEMENTATION.md).
+Current automated and live-test limitations are recorded in
+[implementation status](IMPLEMENTATION.md). The original proposal remains
+unchanged as a source document.
