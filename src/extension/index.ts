@@ -47,18 +47,18 @@ export function scriptedExtension(pi: ExtensionAPI) {
 export default function capsuleExtension(pi: ExtensionAPI) {
   let service: CapsuleService | undefined;
   pi.registerTool({
-    name: "delegate_capsule", label: "Delegate capsule to Luna",
-    description: "Run one foreground Luna delegation and return its compact terminal handoff.",
+    name: "delegate_capsule", label: "Delegate capsule to Flash",
+    description: "Run one foreground Flash delegation and return its compact terminal handoff.",
     parameters: DelegateCapsuleParameters,
     async execute(_id, args, signal, _update, ctx) {
       try {
         if (!service) {
-          const model = resolveConfiguredModel(ctx.modelRegistry, process.env.CAPSULE_LUNA_MODEL);
-          const tools = (process.env.CAPSULE_LUNA_TOOLS ?? "read,bash,edit,write").split(",").map(x => x.trim()).filter(Boolean);
+          const model = resolveConfiguredModel(ctx.modelRegistry, process.env.CAPSULE_FLASH_MODEL);
+          const tools = (process.env.CAPSULE_FLASH_TOOLS ?? "read,bash,edit,write").split(",").map(x => x.trim()).filter(Boolean);
           const stateRoot = process.env.CAPSULE_STATE_DIR;
           if (stateRoot && !isAbsolute(stateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");
-          const timeoutMs = Number(process.env.CAPSULE_LUNA_TIMEOUT_MS ?? 300_000);
-          if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_LUNA_TIMEOUT_MS must be a representable positive integer");
+          const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
+          if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_FLASH_TIMEOUT_MS must be a representable positive integer");
           const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: stateRoot ? `${stateRoot}/worker-sessions` : `${ctx.cwd}/.pi/capsule/worker-sessions`, model, tools });
           service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs });
         }

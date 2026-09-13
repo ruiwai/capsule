@@ -1,9 +1,9 @@
 # Pi Capsule
 
-**Astra makes the key decisions. Luna handles the tool loop. Useful know-how survives.**
+**Flagship makes the key decisions. Flash handles the tool loop. Useful know-how survives.**
 
 Pi Capsule is a context-engineering extension for supervised delegation in Pi.
-Astra supplies temporary direction and an example of the answer it needs. Luna
+Flagship supplies temporary direction and an example of the answer it needs. Flash
 investigates adaptively, yields, and leaves useful project-local JIT knowledge
 for the next delegation. Detailed history stays retrievable, not compulsory
 context on every turn. The [original proposal](docs/sources/ORIGINAL-PROPOSAL.txt)
@@ -16,7 +16,7 @@ JIT, and parent-owned watchdog described below. See
 
 ## Two tools, a small answer
 
-Astra call:
+Flagship call:
 
 ```json
 {
@@ -26,37 +26,37 @@ Astra call:
 }
 ```
 
-Luna calls `yield({ reason, result?, notes?, JITed_history })`. The output example
-is text guidance, not a schema or literal answer. Trust Luna's answer; do not
+Flash calls `yield({ reason, result?, notes?, JITed_history })`. The output example
+is text guidance, not a schema or literal answer. Trust Flash's answer; do not
 compile a type checker or add a formatting-repair loop.
 
-| Outcome | What Astra receives automatically |
+| Outcome | What Flagship receives automatically |
 | --- | --- |
 | `completed` | The compact result, optional supplementary-notes file path, and retained transcript path. |
 | `blocked`, `timeout`, `error` | Mandatory inline explanatory `notes`, plus a transcript path when available. |
 
 A completed `{"ok":false}` is a negative answer, not a failed delegation.
-Needing Astra's judgment is `blocked`. Runtime interruption remains internal.
+Needing Flagship's judgment is `blocked`. Runtime interruption remains internal.
 The parent result is delivered once through the original tool call, without
-polling or another injected message. Only Luna's yield terminates the worker.
+polling or another injected message. Only Flash's yield terminates the worker.
 
 `raw_history` is an absolute readable transcript **path**, never its contents.
-Astra reads successful notes or searches the transcript only when needed.
-JIT updates remain in project-local storage for later Luna context; they are
-not automatically forwarded to Astra.
+Flagship reads successful notes or searches the transcript only when needed.
+JIT updates remain in project-local storage for later Flash context; they are
+not automatically forwarded to Flagship.
 
 ## Bounded work and reclaimed context
 
 Use a parent-owned deadline: default 300 seconds, optional per-call override,
 and a separate 5-second cleanup allowance. It must cover startup through normal
 result preparation, not just the model prompt. Expiry stops work without waiting
-forever for Luna, abort, settlement, or storage. Unconfirmed cleanup keeps the
+forever for Flash, abort, settlement, or storage. Unconfirmed cleanup keeps the
 workspace delegation lock held to prevent overlap.
 
 After a valid, timely yield, retain actual history and useful JIT, then build the
 next worker context from selected lessons and the new capsule/output example.
 Do not carry forward the old capsule, noisy transcript, or old answer example.
-Do not reset Astra's conversation. Prompt guidance is not an OS sandbox.
+Do not reset Flagship's conversation. Prompt guidance is not an OS sandbox.
 
 ## Development and documentation
 
@@ -65,21 +65,21 @@ Start with [interfaces](docs/INTERFACES.md), then the
 [documentation index](docs/README.md) links architecture, lifecycle, and Pi hooks.
 Reuse the existing Pi SDK/subagent design rather than adding another controller.
 
-Project settings load the extension and default Astra to
-`openai-codex/gpt-6-astra`. Luna defaults independently to
-`openai-codex/gpt-5.6-luna`; `CAPSULE_LUNA_MODEL` overrides that worker default.
+Project settings load the extension and default Flagship to
+`openai-codex/gpt-6-astra`. Flash defaults independently to
+`openai-codex/gpt-5.6-luna`; `CAPSULE_FLASH_MODEL` overrides that worker default.
 Both use normal Pi authentication. In the repository's Node/npm development
 environment:
 
 ```sh
 npm run build
-export CAPSULE_LUNA_TOOLS='read,bash,edit,write'
+export CAPSULE_FLASH_TOOLS='read,bash,edit,write'
 pi
 ```
 
 Trust the project when Pi asks so `.pi/settings.json` can take effect. To select
-a different Luna, export `CAPSULE_LUNA_MODEL='provider/model-id'`. When set,
-`CAPSULE_STATE_DIR` must be absolute, Astra-readable, and inside the project;
+a different Flash, export `CAPSULE_FLASH_MODEL='provider/model-id'`. When set,
+`CAPSULE_STATE_DIR` must be absolute, Flagship-readable, and inside the project;
 preserve this existing containment restriction. Run `npm test` for repository
 tests; `npm run test:acceptance` still targets the legacy scripted suites and is
 not proof of live provider behavior.

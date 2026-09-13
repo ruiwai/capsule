@@ -6,27 +6,27 @@ format and timeout. A runtime already exists; these refinements are pending.
 
 ## Responsibilities
 
-**Astra** owns task direction, important decisions, semantic judgment, and review.
+**Flagship** owns task direction, important decisions, semantic judgment, and review.
 It supplies a self-contained capsule plus a self-explanatory output example.
 It need not predict every command or describe a formal result type.
 
-**Luna** uses its ordinary configured tools, branches on observations, and yields
+**Flash** uses its ordinary configured tools, branches on observations, and yields
 when the requested assessment is complete or progress is blocked. It aims to
 follow the output example, rather than a compiled result schema. A genuine
 negative result is different from an inability to establish the answer.
 
 **The plugin** reuses the existing Pi SDK/subagent execution, assembles context,
 returns the handoff once, saves history and JIT, and enforces a deadline. It does
-not take over Luna's local investigation or become a generalized controller.
+not take over Flash's local investigation or become a generalized controller.
 
 ## One cycle, separate destinations
 
 ```text
-Astra: delegate_capsule({ capsule, output_example, timeout_s? })
+Flagship: delegate_capsule({ capsule, output_example, timeout_s? })
                  |
         parent watchdog starts
                  v
-Luna: base instructions + selected JIT + capsule + output example
+Flash: base instructions + selected JIT + capsule + output example
                  |
          ordinary tools <-> observations
                  |
@@ -37,7 +37,7 @@ yield({ reason, result?, notes?, JITed_history })
                  |
      +-----------+-------------------+--------------------+
      |                               |                    |
-Astra tool result              retained files        project JIT
+Flagship tool result              retained files        project JIT
  completed: result + paths     successful notes      useful lessons
  failed: inline notes + path   raw transcript        + provenance
                                                           |
@@ -46,14 +46,14 @@ Astra tool result              retained files        project JIT
 Watchdog expiry -> stop work, bounded cleanup, timeout with inline notes
 ```
 
-Do not send the full yield packet back to Astra. Explicitly project the parent
+Do not send the full yield packet back to Flagship. Explicitly project the parent
 result: compact answer on completion; mandatory inline cause/partial outcome/
 next action on blocked, timeout, or error. Supplemental successful notes and the
 transcript are reachable by absolute paths. JIT is not automatically returned.
 
 The original pending tool result is the only automatic delivery route. No
 polling, receive tool, second injected message, or copied child termination flag
-is needed. The worker stops; Astra remains able to continue.
+is needed. The worker stops; Flagship remains able to continue.
 
 ## Context lifecycle, not process identity
 
@@ -62,7 +62,7 @@ old task direction, output examples, and noisy observations from the next
 model input while retaining the archive. A new session that copies all old
 messages has not reclaimed context; neither has an "ignore previous" message.
 
-Leave Astra's own conversation intact. Rebuilding context does not undo edits,
+Leave Flagship's own conversation intact. Rebuilding context does not undo edits,
 replay tools, or establish OS isolation. Runtime tool permissions still apply;
 JIT and task instructions cannot grant additional authority.
 

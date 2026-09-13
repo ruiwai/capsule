@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import capsuleExtension from "../src/extension/index.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_LUNA_MODEL, createWorkerExtension, resolveConfiguredModel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, createWorkerExtension, resolveConfiguredModel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
 
 const lesson = "Applies while lock-v1 is current. Run the focused check; guard against changing the lock. Verify the decisive assertion.";
 const handoff: YieldArgs = { reason: "completed", result: { ok: false }, notes: "SUPPLEMENT_ONLY_991",
@@ -82,7 +82,7 @@ describe("refined Capsule lifecycle", () => {
   });
 
   it("returns blockers inline without result or notes_path", async () => {
-    const packet: YieldArgs = { reason: "blocked", notes: "Service is unavailable; no answer was established. Astra must decide whether to start it.", JITed_history: [] };
+    const packet: YieldArgs = { reason: "blocked", notes: "Service is unavailable; no answer was established. Flagship must decide whether to start it.", JITed_history: [] };
     const result = await new CapsuleService(new RecordingBackend([settled("partial", packet)]), { projectRoot: root() })
       .delegate({ capsule: "work", output_example: "Say yes or no" });
     expect(result).toMatchObject({ status: "blocked", notes: packet.notes });
@@ -139,21 +139,21 @@ describe("refined Capsule lifecycle", () => {
 });
 
 describe("parent/child tool separation", () => {
-  it("configures Astra and Luna defaults while retaining the Luna override", async () => {
+  it("configures Flagship and Flash defaults while retaining the Flash override", async () => {
     const settings = JSON.parse(await readFile(join(process.cwd(), ".pi", "settings.json"), "utf8"));
     expect(settings).toMatchObject({ defaultProvider: "openai-codex", defaultModel: "gpt-6-astra" });
     expect(settings.extensions).toContain("../src/extension/index.ts");
-    expect(DEFAULT_LUNA_MODEL).toBe("openai-codex/gpt-5.6-luna");
+    expect(DEFAULT_FLASH_MODEL).toBe("openai-codex/gpt-5.6-luna");
     const finds: string[] = [], registry = { find(provider: string, id: string) { finds.push(`${provider}/${id}`); return { provider, id }; } };
     expect(resolveConfiguredModel(registry as any, undefined)).toMatchObject({ provider: "openai-codex", id: "gpt-5.6-luna" });
     expect(resolveConfiguredModel(registry as any, "other/custom")).toMatchObject({ provider: "other", id: "custom" });
     expect(finds).toEqual(["openai-codex/gpt-5.6-luna", "other/custom"]);
   });
-  it("registers only delegate_capsule in Astra", () => {
+  it("registers only delegate_capsule in Flagship", () => {
     const tools: any[] = []; capsuleExtension({ registerTool: (tool: any) => tools.push(tool) } as any);
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
   });
-  it("injects exact example/JIT and exposes only terminating yield in Luna", async () => {
+  it("injects exact example/JIT and exposes only terminating yield in Flash", async () => {
     const tools: any[] = [], hooks = new Map<string, any>(), state = { hooksRan: false, duplicate: false };
     const extension = createWorkerExtension({ outputExample: "PLAIN EXAMPLE", jit: [{ topic: "project-tests", content: lesson, raw_history: "/project/episode.jsonl" }] }, state);
     await (extension as any)({ registerTool: (tool: any) => tools.push(tool), on: (name: string, handler: any) => hooks.set(name, handler) });

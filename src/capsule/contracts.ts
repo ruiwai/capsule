@@ -8,7 +8,7 @@ export const DelegateCapsuleParameters = Type.Object({
   capsule: Type.String({ minLength: 1, maxLength: 32_000, pattern: nonBlank,
     description: "Self-contained Markdown instructions for this delegation." }),
   output_example: Type.String({ minLength: 1, pattern: nonBlank,
-    description: "Example-format text passed unchanged to Luna; it is not a result schema." }),
+    description: "Example-format text passed unchanged to Flash; it is not a result schema." }),
   timeout_s: Type.Optional(Type.Number({ exclusiveMinimum: 0,
     description: "Optional per-call working timeout in seconds." })),
 }, { additionalProperties: false });

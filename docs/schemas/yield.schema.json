@@ -16,7 +16,7 @@
     },
     "JITed_history": {
       "type": "array", "maxItems": 8,
-      "description": "Project-local topic updates retained for later Luna context, not forwarded to Astra. [] means no update.",
+      "description": "Project-local topic updates retained for later Flash context, not forwarded to Flagship. [] means no update.",
       "items": {
         "type": "object", "additionalProperties": false,
         "required": ["topic", "content"],

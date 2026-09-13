@@ -8,7 +8,7 @@
       "required": ["status", "result", "raw_history"],
       "properties": {
         "status": {"const": "completed"},
-        "result": {"description": "Luna's JSON answer passed through unchanged, without validation against output_example."},
+        "result": {"description": "Flash's JSON answer passed through unchanged, without validation against output_example."},
         "notes_path": {
           "type": "string", "minLength": 2, "pattern": "^/",
           "description": "Absolute retained supplementary-notes file path. Optional; omit when no notes exist. Never inline notes or invented paths. Runtime checks readability."

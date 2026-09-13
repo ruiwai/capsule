@@ -5,19 +5,19 @@
 [agent implementation prompt](IMPLEMENTATION-PROMPT.md).
 
 ```text
-Astra: delegate_capsule({ capsule, output_example, timeout_s? })
-Luna:  yield({ reason, result?, notes?, JITed_history })
+Flagship: delegate_capsule({ capsule, output_example, timeout_s? })
+Flash:  yield({ reason, result?, notes?, JITed_history })
 
 Completed -> compact result + optional notes file path + transcript path
 Failed    -> mandatory inline notes + transcript path when available
-JIT       -> project-local knowledge for later Luna episodes, not Astra's return
+JIT       -> project-local knowledge for later Flash episodes, not Flagship's return
 ```
 
 These are the only two additional model-facing tools. Ordinary Pi tools remain
 available under the configured runtime permissions. The parent call returns
 once through normal tool-result context; no polling or duplicate message.
 
-## Astra's input
+## Flagship's input
 
 ```json
 {
@@ -37,8 +37,8 @@ format. Do not require it to parse as JSON. The values illustrate the answer's
 format, not conclusions to copy. The capsule defines what the answer means.
 
 There is no caller-provided output schema, inferred generic type, result-shape
-checker, coercion, silent field removal, or formatting-repair loop. Trust Luna
-to follow the example and let Astra review its answer. A different JSON shape
+checker, coercion, silent field removal, or formatting-repair loop. Trust Flash
+to follow the example and let Flagship review its answer. A different JSON shape
 or a text result is not a runtime error merely because the example differed.
 
 `timeout_s` is optional, positive, finite seconds. The default is
@@ -47,11 +47,11 @@ wins over the configured default. Add a separate **5-second cleanup allowance**.
 Validate timer representability rather than allowing overflow or an unlimited
 wait. These defaults are enforced by the current runtime.
 
-The plugin supplies Luna's configured model, project, tools, selected JIT,
+The plugin supplies Flash's configured model, project, tools, selected JIT,
 transcript locations, and parent/child binding. Do not let either model invent
 callback addresses or archive paths.
 
-## Luna's yield
+## Flash's yield
 
 ```json
 {
@@ -64,10 +64,10 @@ callback addresses or archive paths.
 
 | Field | Fixed handoff rule |
 | --- | --- |
-| `reason` | Required: `completed` or `blocked`. Needing Astra's judgment is a blocker. |
+| `reason` | Required: `completed` or `blocked`. Needing Flagship's judgment is a blocker. |
 | `result` | Any JSON value, including text. Required on a completed handoff; omit on a blocked handoff. Its internal shape is not checked against the example. |
 | `notes` | Optional supplementary prose on completion; required, nonblank explanation on a blocked handoff. |
-| `JITed_history` | Required array of project-local `{topic, content}` updates. `[]` means no update. Not forwarded to Astra. |
+| `JITed_history` | Required array of project-local `{topic, content}` updates. `[]` means no update. Not forwarded to Flagship. |
 
 Only validate this small fixed envelope, JSON transportability, and the existing
 JIT storage fields. Requiring a result key or blocker explanation is not a type
@@ -86,12 +86,12 @@ A blocked yield is, for example:
 ```json
 {
   "reason": "blocked",
-  "notes": "The test command could not start because the required local service is unavailable. No test result was established. Astra must decide whether starting that service is within scope.",
+  "notes": "The test command could not start because the required local service is unavailable. No test result was established. Flagship must decide whether starting that service is within scope.",
   "JITed_history": []
 }
 ```
 
-## What automatically enters Astra's context
+## What automatically enters Flagship's context
 
 The paths below are illustrative, not claims that these files exist.
 
@@ -117,7 +117,7 @@ Every non-completed return has mandatory expanded inline `notes`:
 ```json
 {
   "status": "blocked",
-  "notes": "The test command could not start because the required local service is unavailable. No test result was established. Astra must decide whether starting that service is within scope.",
+  "notes": "The test command could not start because the required local service is unavailable. No test result was established. Flagship must decide whether starting that service is within scope.",
   "raw_history": "/absolute/state/episode-18/transcript.jsonl"
 }
 ```
@@ -138,15 +138,15 @@ Every non-completed return has mandatory expanded inline `notes`:
 
 The only non-completed statuses are `blocked`, `timeout`, and `error`. They have
 no `result` or `notes_path`. `notes` explains the cause, known partial outcome,
-and needed action or decision directly, without requiring Astra to read a file.
-It is actionable prose, not the entire transcript. Use Luna's explanation for
+and needed action or decision directly, without requiring Flagship to read a file.
+It is actionable prose, not the entire transcript. Use Flash's explanation for
 `blocked`; the plugin generates timeout/error notes from known observations
-without waiting for Luna. Notes remain mandatory even when file storage fails.
+without waiting for Flash. Notes remain mandatory even when file storage fails.
 An available partial transcript can be returned as `raw_history`; otherwise
 omit that field. Never invent a path.
 
 User interruption still aborts and cleans up runtime work, but is not a public
-`cancelled` answer and must not force another Astra inference. `needs_decision`
+`cancelled` answer and must not force another Flagship inference. `needs_decision`
 is merged into `blocked`. The former `yielded` / `reply` / mandatory `report`
 return is superseded, not an alternate current contract.
 
@@ -159,12 +159,12 @@ route that forwards raw history or JIT to the parent model.
 
 `raw_history` is exclusively an absolute path to the actual retained, searchable
 UTF-8 transcript. It is never file contents, encoded bytes, a URI, or an opaque
-session ID. Paths must remain readable by Astra's ordinary tools after child
+session ID. Paths must remain readable by Flagship's ordinary tools after child
 cleanup. Preserve the existing requirement that configured state stays inside
 the project. Prefer existing backend/session artifacts; retain a local accessible
 copy when necessary. Do not return deleted worker-temporary paths.
 
-Astra may explicitly search the path, for example:
+Flagship may explicitly search the path, for example:
 
 ```sh
 rg -n -F -C 2 -- "failure text" "/absolute/state/episode-17/transcript.jsonl"
@@ -184,7 +184,7 @@ not certification or standing permission; do not edit global skills by default.
 Publish only from a valid, timely, settled yield with retained provenance. A
 blocked yield may contain a genuine verified lesson; its task remains blocked.
 Timeout, runtime error, interrupted, malformed, or late yields publish no JIT.
-Astra can inspect/correct knowledge deliberately; it is not automatically shown.
+Flagship can inspect/correct knowledge deliberately; it is not automatically shown.
 
 ## Watchdog and terminal handling
 
@@ -202,7 +202,7 @@ and fence late JIT publication; delayed callbacks must not overwrite terminal
 state or release ownership of a newer episode.
 
 Use actual backend termination of the worker and owned commands, not only a
-Promise.race that leaves Luna running. If the current in-process adapter cannot
+Promise.race that leaves Flash running. If the current in-process adapter cannot
 terminate uncooperative work, minimally adapt an existing terminable Pi child
 runner; do not create a generalized controller or kill the parent. If cleanup
 cannot be confirmed, say so inline and block overlap in the affected workspace.
@@ -211,7 +211,7 @@ runtime; userspace timers are not a hard OS scheduling or sandbox guarantee.
 
 Normal yield remains the sole final worker tool call. Reject mixed yield/work
 batches and duplicate terminal publication. Wait for normal backend completion
-without forwarding the worker's termination flag to Astra. The watchdog is an
+without forwarding the worker's termination flag to Flagship. The watchdog is an
 independent exit, not another wait for settlement. Keep internal user-abort
 cleanup and remove timers/listeners on every exit.
 
@@ -222,7 +222,7 @@ The three existing [input](schemas/delegate_capsule.schema.json),
 [parent-result](schemas/delegate_capsule-result.schema.json) schema files now
 describe only the fixed transport envelopes. `result` is unconstrained JSON.
 These are documentation/implementation references, not schemas requested from
-Astra and not evidence that the runtime has been migrated.
+Flagship and not evidence that the runtime has been migrated.
 
 Retain the existing capsule ceiling (32,000 characters) and JIT ceilings
 (8 entries, 64-character topic matching `^[a-z0-9][a-z0-9_-]*$`, 4,000-character

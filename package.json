@@ -11,7 +11,7 @@
     "check": "npm run build && npm test",
     "compat": "tsx src/cli.ts compat",
     "demo": "tsx src/cli.ts demo",
-    "luna-smoke": "tsx src/cli.ts luna-smoke"
+    "flash-smoke": "tsx src/cli.ts flash-smoke"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",

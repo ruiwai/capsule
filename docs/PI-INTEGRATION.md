@@ -27,7 +27,7 @@ switch backend merely to follow an obsolete preferred-package recommendation.
 If the existing in-process adapter cannot provide effective bounded termination,
 adapt a small existing terminable child runner, preserving licenses and Pi's
 model/tool machinery. Do not build multiple backends or use an async-only route
-that makes Astra poll for this foreground return. Pin and test any actual change.
+that makes Flagship poll for this foreground return. Pin and test any actual change.
 
 ## Hook and boundary map
 
@@ -36,10 +36,10 @@ that makes Astra poll for this foreground return. Pin and test any actual change
 | Parent `delegate_capsule` | Accept capsule, output example, and optional timeout; start parent supervision before awaited setup. |
 | Worker `before_agent_start` | Add selected JIT, unchanged output-example guidance, and yield instructions without duplicating the capsule. |
 | Worker `yield` | Capture completed/blocked handoff. `result` is arbitrary JSON; only the fixed envelope is checked. |
-| Worker terminating result | End Luna only; do not forward its termination flag to Astra. |
+| Worker terminating result | End Flash only; do not forward its termination flag to Flagship. |
 | Backend completion / settlement | Finalize normal yield once; not a reason to wait past the independent deadline. |
 | Parent tool `content` | Completed answer plus paths, or mandatory inline failure notes. No full yield/backend forwarding. |
-| Transcript and JIT storage | Retain searchable files and project lessons separately from Astra's input. |
+| Transcript and JIT storage | Retain searchable files and project lessons separately from Flagship's input. |
 | Runtime abort / shutdown | Stop worker activity and clean up through bounded backend mechanisms. |
 | Fresh session / optional `context` hook | Retain current observations; exclude old episode material from future input. |
 
@@ -49,9 +49,9 @@ The installed [extension documentation](../node_modules/@earendil-works/pi-codin
 are the local API references. Verify integration against the installed types
 when changing code, rather than assuming public latest documentation is pinned.
 
-Hooks must run inside Luna, not just Astra. The project settings default Astra
-to `openai-codex/gpt-6-astra`; the adapter defaults Luna to
-`openai-codex/gpt-5.6-luna`, with `CAPSULE_LUNA_MODEL` as an explicit override.
+Hooks must run inside Flash, not just Flagship. The project settings default Flagship
+to `openai-codex/gpt-6-astra`; the adapter defaults Flash to
+`openai-codex/gpt-5.6-luna`, with `CAPSULE_FLASH_MODEL` as an explicit override.
 Keep the configured model selection explicit,
 exclude the parent's delegation tool from the worker, and keep provider
 credentials in normal Pi configuration. Preserve existing runtime permissions.
@@ -87,7 +87,7 @@ On completion save supplementary notes to a file and return its path. On every
 blocked/timeout/error return put the explanation inline, even if file storage
 fails. Keep `raw_history` path-only, and keep JIT updates internal. `content` is
 the normal delivery route; do not also send another user/custom message. User
-interruption still cleans up but never forces a new Astra turn or adds a public
+interruption still cleans up but never forces a new Flagship turn or adds a public
 cancellation status.
 
 ## Source scope

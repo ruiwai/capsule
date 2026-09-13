@@ -10,9 +10,9 @@ the legacy scripted controller is separate.
 | --- | --- |
 | Fixed contracts | `delegate_capsule({capsule, output_example, timeout_s?})`; completed/blocked `yield` with arbitrary JSON result and bounded JIT fields. Old report/reply/yielded, needs_decision, and public cancelled envelopes are rejected. |
 | Parent projection | Completion passes `result` unchanged and returns retained transcript plus optional notes paths. Blocked/runtime failures use mandatory inline notes and never fabricate a result. |
-| Context | Luna receives selected project JIT, the current capsule, and unchanged example guidance. The parent receives no JIT, successful note text, transcript content, or worker termination flag. |
+| Context | Flash receives selected project JIT, the current capsule, and unchanged example guidance. The parent receives no JIT, successful note text, transcript content, or worker termination flag. |
 | Storage | Searchable UTF-8 transcripts and supplementary notes are retained under the project-scoped state root. Topic updates use atomic project-local replacement with transcript provenance. |
-| Watchdog | One per-call deadline starts before JIT loading/backend setup and remains active through normal persistence. Precedence is `timeout_s` > `CAPSULE_LUNA_TIMEOUT_MS` > 300,000 ms; timer values are range checked. Cleanup has a separate 5,000 ms allowance. |
+| Watchdog | One per-call deadline starts before JIT loading/backend setup and remains active through normal persistence. Precedence is `timeout_s` > `CAPSULE_FLASH_TIMEOUT_MS` > 300,000 ms; timer values are range checked. Cleanup has a separate 5,000 ms allowance. |
 | Termination | Expiry selects timeout once, aborts the owned Pi session, bounds abort/idleness/retention waits, fences late handoff/JIT processing, and retains workspace ownership when cleanup is unconfirmed. User interruption follows the internal abort path rather than returning a public cancellation status. |
 
 The backend uses Pi's actual `session.abort()` boundary. It does not claim an OS
@@ -41,9 +41,9 @@ the compatibility check for the scripted path.
 ## Development setup and verification
 
 The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings
-default Astra to `openai-codex/gpt-6-astra` and load the extension. Luna defaults
-to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_LUNA_MODEL=provider/model-id`
-overrides it. `CAPSULE_LUNA_TOOLS`, `CAPSULE_LUNA_TIMEOUT_MS`, and absolute
+default Flagship to `openai-codex/gpt-6-astra` and load the extension. Flash defaults
+to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_FLASH_MODEL=provider/model-id`
+overrides it. `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and absolute
 project-contained `CAPSULE_STATE_DIR` retain their documented behavior.
 Authentication comes from normal Pi config.
 
