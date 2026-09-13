@@ -1,0 +1,102 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "accepted": {
+      "taskId": "task_be5a3311-596c-4c5b-8475-5d226a33be1e",
+      "episodeId": "episode_492d854e-a83c-49a6-944a-c5814d998f6d",
+      "reportId": "report_203441bd-7d47-467e-ba6c-fd3aa53b9b51",
+      "reportDigest": "b5da89567ade4ca52adfcce41a6e5591c2121c29060f70fc6735497e16c28812",
+      "decisionId": "synthetic-decision",
+      "acceptedUnits": [
+        "inspection",
+        "check"
+      ],
+      "decision": "accept",
+      "rationale": "All named synthetic criteria verified from actual receipts"
+    },
+    "incomplete": {
+      "id": "report_158442ed-6fbf-4cbf-a2ae-bcda664d0088",
+      "taskId": "task_3889d452-5e59-44d7-9149-c9baedd4d0fd",
+      "episodeId": "episode_9fe847d3-b850-4365-a4cd-fcf95c2a1a8d",
+      "capsuleDigest": "bbddebe18182678e8dc15b642c3f45c77b86e17e49cc3f16046ecc4c8d52a358",
+      "draftStatus": "absent",
+      "summary": "Controller fallback: authoritative receipts and verifiers only.",
+      "evidenceComplete": false,
+      "protected": true,
+      "evidence": [],
+      "criteria": [
+        {
+          "id": "inspection-protected",
+          "kind": "protected",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "inspection-completion",
+          "kind": "completion",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "unknown"
+        },
+        {
+          "id": "inspection-evidence",
+          "kind": "evidence",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "unknown"
+        },
+        {
+          "id": "check-protected",
+          "kind": "protected",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-completion",
+          "kind": "completion",
+          "required": true,
+          "unitId": "check",
+          "verification": "unknown"
+        },
+        {
+          "id": "check-evidence",
+          "kind": "evidence",
+          "required": true,
+          "unitId": "check",
+          "verification": "unknown"
+        },
+        {
+          "id": "check-structured",
+          "kind": "structured",
+          "required": true,
+          "unitId": "check",
+          "verification": "unknown"
+        }
+      ],
+      "units": [
+        {
+          "unitId": "inspection",
+          "description": "Read approved protected file",
+          "executionState": "not_run",
+          "verification": "fail",
+          "acceptance": "pending",
+          "executionId": null
+        },
+        {
+          "unitId": "check",
+          "description": "Synthetic certification must be true and complete",
+          "executionState": "not_run",
+          "verification": "fail",
+          "acceptance": "pending",
+          "executionId": null
+        }
+      ],
+      "environmentHandle": null,
+      "digest": "04a43ea4e577a955555abfa9251645a102a03e405b44fd20856a8abdaaddfb58"
+    },
+    "changedFile": "external user change"
+  }
+}

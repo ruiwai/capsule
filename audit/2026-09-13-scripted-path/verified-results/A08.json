@@ -1,0 +1,57 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "restarted": {
+      "error": "Error: reconciliation_required: durable intent has uncertain external effects; not replayed",
+      "pid": 1886125
+    },
+    "receipt": {
+      "schemaVersion": 1,
+      "id": "exec_6dce3fa7-fae8-45ec-81db-8fde881974ce",
+      "taskId": "task_e195c0f6-7e21-47fd-953d-bca63e398c86",
+      "episodeId": "episode_d30f61c7-2fac-42db-9ff8-2deed8e5319c",
+      "requestId": "check:0",
+      "capsuleDigest": "926226108bd262db9b172680d91fbd6397daf6c4ca316bc8b737ec6827237b82",
+      "unitId": "check",
+      "recipeId": "check.fixture",
+      "recipeDigest": "7eb6533a00eb902f904b4de1a008d640ae8be4c9c769675d1c665e0410b6b356",
+      "acceptanceUnitId": "check",
+      "argv": [
+        "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+        "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+        "pass"
+      ],
+      "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-mAWCZZ/project",
+      "publicEnvironment": {},
+      "environmentHandleId": null,
+      "startedAt": "2026-09-13T14:44:49.210Z",
+      "endedAt": "2026-09-13T14:44:49.312Z",
+      "durationMs": 102,
+      "processIdentity": {
+        "pid": 1886137,
+        "startIdentity": "spawned:2026-09-13T14:44:49.210Z",
+        "groupId": 1886137
+      },
+      "spawnError": null,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "cancelled": false,
+      "descendantsReaped": null,
+      "externalEffectsAccounting": "complete_for_declared_scope",
+      "stdout": {
+        "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+        "storedBytes": 35,
+        "observedBytes": 35,
+        "complete": true
+      },
+      "stderr": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "storedBytes": 0,
+        "observedBytes": 0,
+        "complete": true
+      }
+    }
+  }
+}

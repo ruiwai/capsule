@@ -1,0 +1,125 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "alteredEffects": "",
+    "deniedEffects": "",
+    "authorized": {
+      "taskId": "task_e16b1b40-f04d-46a7-93d9-51c113fef758",
+      "episodeId": "episode_34ba5484-2bee-4a1c-bf69-46a3cfef1ac4",
+      "capsuleDigest": "894f033d264eb1c4d3ce097292ac7244c0656f68bc418f45ac92910f4d6f3bb3",
+      "phase": "reported",
+      "report": {
+        "id": "report_f22bb1d3-1330-4e21-976b-d3e59d3497c9",
+        "taskId": "task_e16b1b40-f04d-46a7-93d9-51c113fef758",
+        "episodeId": "episode_34ba5484-2bee-4a1c-bf69-46a3cfef1ac4",
+        "capsuleDigest": "894f033d264eb1c4d3ce097292ac7244c0656f68bc418f45ac92910f4d6f3bb3",
+        "draftStatus": "absent",
+        "summary": "Controller fallback: authoritative receipts and verifiers only.",
+        "evidenceComplete": true,
+        "protected": true,
+        "evidence": [
+          {
+            "executionId": "exec_f3a143bf-0978-47d2-b1bd-e20dcf1646e3",
+            "complete": true,
+            "observedBytes": 27,
+            "sha256": "cfc40371b5e27525af5497aa75312dbf0cb6855d2dde4bdde3851bd15bb4fa59",
+            "storedBytes": 27
+          },
+          {
+            "executionId": "exec_f3a143bf-0978-47d2-b1bd-e20dcf1646e3",
+            "complete": true,
+            "observedBytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "storedBytes": 0
+          },
+          {
+            "executionId": "exec_94fa9d88-025c-4657-a97f-0a3cd8674fc7",
+            "complete": true,
+            "observedBytes": 35,
+            "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+            "storedBytes": 35
+          },
+          {
+            "executionId": "exec_94fa9d88-025c-4657-a97f-0a3cd8674fc7",
+            "complete": true,
+            "observedBytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "storedBytes": 0
+          }
+        ],
+        "criteria": [
+          {
+            "id": "inspection-protected",
+            "kind": "protected",
+            "required": true,
+            "unitId": "inspection",
+            "verification": "pass"
+          },
+          {
+            "id": "inspection-completion",
+            "kind": "completion",
+            "required": true,
+            "unitId": "inspection",
+            "verification": "pass"
+          },
+          {
+            "id": "inspection-evidence",
+            "kind": "evidence",
+            "required": true,
+            "unitId": "inspection",
+            "verification": "pass"
+          },
+          {
+            "id": "check-protected",
+            "kind": "protected",
+            "required": true,
+            "unitId": "check",
+            "verification": "pass"
+          },
+          {
+            "id": "check-completion",
+            "kind": "completion",
+            "required": true,
+            "unitId": "check",
+            "verification": "pass"
+          },
+          {
+            "id": "check-evidence",
+            "kind": "evidence",
+            "required": true,
+            "unitId": "check",
+            "verification": "pass"
+          },
+          {
+            "id": "check-structured",
+            "kind": "structured",
+            "required": true,
+            "unitId": "check",
+            "verification": "pass"
+          }
+        ],
+        "units": [
+          {
+            "unitId": "inspection",
+            "description": "Read approved protected file",
+            "executionState": "completed",
+            "verification": "pass",
+            "acceptance": "pending",
+            "executionId": "exec_f3a143bf-0978-47d2-b1bd-e20dcf1646e3"
+          },
+          {
+            "unitId": "check",
+            "description": "Synthetic certification must be true and complete",
+            "executionState": "completed",
+            "verification": "pass",
+            "acceptance": "pending",
+            "executionId": "exec_94fa9d88-025c-4657-a97f-0a3cd8674fc7"
+          }
+        ],
+        "environmentHandle": null,
+        "digest": "32d6e3875678ca9593ab0c1243a1b54590b44aed64c160b3d1bae9b4a4da02b6"
+      }
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "stateRoot": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-9Vzkeg/state",
+  "principal": "synthetic-operator",
+  "trustedLocal": true,
+  "ceiling": {
+    "projectRoot": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-9Vzkeg/project",
+    "readPaths": [
+      "protected.txt"
+    ],
+    "writePaths": [],
+    "tools": [
+      "exec_action",
+      "read_evidence"
+    ],
+    "operations": [
+      "project.inspect",
+      "check.fixture"
+    ],
+    "effects": [
+      "read",
+      "check"
+    ],
+    "capabilities": {
+      "environmentCreate": false,
+      "lockedSync": false,
+      "fhsEntry": false,
+      "directLoader": false,
+      "nixRealization": false,
+      "downloads": false
+    },
+    "budget": {
+      "wallMs": 15000,
+      "reportReserveMs": 500,
+      "commandMsTotal": 8000,
+      "perCommandMs": 2000,
+      "maxToolActions": 4,
+      "evidenceBytes": 4096
+    },
+    "recovery": 0
+  },
+  "grants": {
+    "operator-grant": {
+      "principal": "synthetic-operator",
+      "enabled": true,
+      "review": true,
+      "scope": {
+        "projectRoot": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-9Vzkeg/project",
+        "readPaths": [
+          "protected.txt"
+        ],
+        "writePaths": [],
+        "tools": [
+          "exec_action",
+          "read_evidence"
+        ],
+        "operations": [
+          "project.inspect",
+          "check.fixture"
+        ],
+        "effects": [
+          "read",
+          "check"
+        ],
+        "capabilities": {
+          "environmentCreate": false,
+          "lockedSync": false,
+          "fhsEntry": false,
+          "directLoader": false,
+          "nixRealization": false,
+          "downloads": false
+        },
+        "budget": {
+          "wallMs": 15000,
+          "reportReserveMs": 500,
+          "commandMsTotal": 8000,
+          "perCommandMs": 2000,
+          "maxToolActions": 4,
+          "evidenceBytes": 4096
+        },
+        "recovery": 0
+      }
+    }
+  },
+  "checks": [
+    {
+      "id": "check.fixture",
+      "builder": "node-check",
+      "script": "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+      "sha256": "6f86df3c091543d3f77649148f3466b40dc49887fe54f6208034f394add28988",
+      "parameters": {
+        "mode": [
+          "pass",
+          "fail",
+          "command-fail",
+          "null",
+          "slow",
+          "recover"
+        ]
+      },
+      "requiredCapabilities": []
+    }
+  ]
+}

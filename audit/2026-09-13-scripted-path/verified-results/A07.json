@@ -1,0 +1,67 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "concurrent": [
+      {
+        "status": "fulfilled",
+        "value": {
+          "schemaVersion": 1,
+          "id": "exec_6d72e11d-c488-409b-b18b-9b4461a1c0be",
+          "taskId": "task_fa55c485-8ab5-4fac-8364-ae8f688ce765",
+          "episodeId": "episode_71ea90c7-eb2b-4a55-bf89-384af65e0a42",
+          "requestId": "check:0",
+          "capsuleDigest": "93ecad5ffb70c1458be867ad987ee09885d4a7e00b96621f64480d4674bfaee5",
+          "unitId": "check",
+          "recipeId": "check.fixture",
+          "recipeDigest": "7eb6533a00eb902f904b4de1a008d640ae8be4c9c769675d1c665e0410b6b356",
+          "acceptanceUnitId": "check",
+          "argv": [
+            "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+            "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+            "slow"
+          ],
+          "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-twfn0g/project",
+          "publicEnvironment": {},
+          "environmentHandleId": null,
+          "startedAt": "2026-09-13T14:44:45.182Z",
+          "endedAt": "2026-09-13T14:44:45.581Z",
+          "durationMs": 399,
+          "processIdentity": {
+            "pid": 1886090,
+            "startIdentity": "spawned:2026-09-13T14:44:45.182Z",
+            "groupId": 1886090
+          },
+          "spawnError": null,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "cancelled": false,
+          "descendantsReaped": null,
+          "externalEffectsAccounting": "complete_for_declared_scope",
+          "stdout": {
+            "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+            "storedBytes": 35,
+            "observedBytes": 35,
+            "complete": true
+          },
+          "stderr": {
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "storedBytes": 0,
+            "observedBytes": 0,
+            "complete": true
+          }
+        }
+      },
+      {
+        "status": "rejected",
+        "reason": {}
+      }
+    ],
+    "aggregateEffects": "x",
+    "actualCommandMs": 77,
+    "reservedCommandMs": 1200,
+    "delayedEffects": "",
+    "revokedEffects": ""
+  }
+}

@@ -1,0 +1,68 @@
+ M README.md
+ A flake.lock
+ M flake.nix
+ M package.json
+ M src/cli.ts
+ M src/controller/controller.ts
+ M src/environment/handles.ts
+ M src/evidence/store.ts
+ M src/execution/spawn.ts
+ M src/extension/index.ts
+?? .gitignore
+?? audit/2026-09-13-recheck/RECHECK.md
+?? audit/2026-09-13-recheck/baseline-checks.log
+?? audit/2026-09-13-recheck/baseline.sha256
+?? audit/2026-09-13-recheck/commit.txt
+?? audit/2026-09-13-recheck/current-probes-v2/
+?? audit/2026-09-13-recheck/current-probes/
+?? audit/2026-09-13-recheck/fresh-fhs.log
+?? audit/2026-09-13-recheck/git-after.txt
+?? audit/2026-09-13-recheck/git-before.txt
+?? audit/2026-09-13-recheck/preservation-final.log
+?? audit/2026-09-13-recheck/preservation.log
+?? audit/2026-09-13-recheck/prior-api-driver.mts
+?? audit/2026-09-13-recheck/prior-api.log
+?? audit/2026-09-13-recheck/prior-api/
+?? audit/2026-09-13-recheck/prior-process-driver.mts
+?? audit/2026-09-13-recheck/prior-process.log
+?? audit/2026-09-13-recheck/prior-process/
+?? audit/2026-09-13-recheck/recheck-probes-v1.mts
+?? audit/2026-09-13-recheck/recheck-probes-v2.log
+?? audit/2026-09-13-recheck/recheck-probes.log
+?? audit/2026-09-13-recheck/recheck-probes.mts
+?? audit/2026-09-13-recheck/started-at.txt
+?? audit/2026-09-13-scripted-path/
+?? audit/2026-09-13-stabilization-recheck/
+?? audit/2026-09-13/AUDIT.md
+?? audit/2026-09-13/baseline-checks.log
+?? audit/2026-09-13/baseline.sha256
+?? audit/2026-09-13/denied-loader-result.json
+?? audit/2026-09-13/denied-loader.mts
+?? audit/2026-09-13/evidence-audit.mts
+?? audit/2026-09-13/fresh-environment.log
+?? audit/2026-09-13/fresh-environment.py
+?? audit/2026-09-13/git-after.txt
+?? audit/2026-09-13/git-before.txt
+?? audit/2026-09-13/preservation-final.log
+?? audit/2026-09-13/preservation.log
+?? audit/2026-09-13/process-probes.log
+?? audit/2026-09-13/process-probes.mts
+?? audit/2026-09-13/process-results.json
+?? audit/2026-09-13/repro-results.json
+?? audit/2026-09-13/repros.log
+?? audit/2026-09-13/repros.mts
+?? audit/2026-09-13/saved-evidence-audit.json
+?? demo-results/
+?? docs/
+?? src/controller/durable.ts
+?? src/controller/scripted-contract.ts
+?? src/controller/scripted.ts
+?? tests/fixtures/fhs-project/src/capsule_fixture/__pycache__/
+?? tests/fixtures/old-source/capsule_fixture/__pycache__/
+?? tests/fixtures/scripted-check.cjs
+?? tests/scripted-fixture.ts
+?? tests/scripted-process.ts
+?? tests/scripted.test.ts
+?? tests/setup-scripted-example.ts
+?? tsconfig.json
+?? vitest.config.ts

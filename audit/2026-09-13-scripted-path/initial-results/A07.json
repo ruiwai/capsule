@@ -1,0 +1,64 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "concurrent": [
+      {
+        "status": "fulfilled",
+        "value": {
+          "schemaVersion": 1,
+          "id": "exec_7c58c66c-bc70-4f53-9514-9af6123a9c6f",
+          "taskId": "task_400dc76f-e531-4110-8fb5-e78a862292f6",
+          "episodeId": "episode_4d34b2a7-2f57-44b5-ab68-818d0c93a5bc",
+          "requestId": "check:0",
+          "capsuleDigest": "61cf1f8496cc2c4ce861d0a109a7e7dfa738348f5942e3575439c7f579b7a75b",
+          "unitId": "check",
+          "recipeId": "check.fixture",
+          "recipeDigest": "97fb792339c64a15e2f944f61e00aabb11b6a4cf3b187a3978dbf92235c44157",
+          "acceptanceUnitId": "check",
+          "argv": [
+            "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+            "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+            "slow"
+          ],
+          "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-F7063Q/project",
+          "publicEnvironment": {},
+          "environmentHandleId": null,
+          "startedAt": "2026-09-13T14:25:26.530Z",
+          "endedAt": "2026-09-13T14:25:26.931Z",
+          "durationMs": 401,
+          "processIdentity": {
+            "pid": 1866279,
+            "startIdentity": "spawned:2026-09-13T14:25:26.530Z",
+            "groupId": 1866279
+          },
+          "spawnError": null,
+          "exitCode": 0,
+          "signal": null,
+          "timedOut": false,
+          "cancelled": false,
+          "descendantsReaped": null,
+          "externalEffectsAccounting": "complete_for_declared_scope",
+          "stdout": {
+            "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+            "storedBytes": 35,
+            "observedBytes": 35,
+            "complete": true
+          },
+          "stderr": {
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "storedBytes": 0,
+            "observedBytes": 0,
+            "complete": true
+          }
+        }
+      },
+      {
+        "status": "rejected",
+        "reason": {}
+      }
+    ],
+    "aggregateEffects": "x",
+    "delayedEffects": ""
+  }
+}

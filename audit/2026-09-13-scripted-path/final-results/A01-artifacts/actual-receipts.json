@@ -1,0 +1,97 @@
+[
+  {
+    "acceptanceUnitId": "check",
+    "argv": [
+      "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+      "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+      "pass"
+    ],
+    "cancelled": false,
+    "capsuleDigest": "95e5b03edb66a0e453352bfb73843a20b605ac7cf2529720bc03c2cf05a3ae26",
+    "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-uTqAoz/project",
+    "descendantsReaped": null,
+    "durationMs": 68,
+    "endedAt": "2026-09-13T14:34:38.120Z",
+    "environmentHandleId": null,
+    "episodeId": "episode_0de56a59-3ff4-4f78-9f6e-2a4f0fdbf856",
+    "exitCode": 0,
+    "externalEffectsAccounting": "complete_for_declared_scope",
+    "id": "exec_88c36e7d-c41e-4e29-9ab9-76b832db7bfb",
+    "processIdentity": {
+      "groupId": 1876642,
+      "pid": 1876642,
+      "startIdentity": "spawned:2026-09-13T14:34:38.052Z"
+    },
+    "publicEnvironment": {},
+    "recipeDigest": "7eb6533a00eb902f904b4de1a008d640ae8be4c9c769675d1c665e0410b6b356",
+    "recipeId": "check.fixture",
+    "requestId": "check:0",
+    "schemaVersion": 1,
+    "signal": null,
+    "spawnError": null,
+    "startedAt": "2026-09-13T14:34:38.052Z",
+    "stderr": {
+      "complete": true,
+      "observedBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0
+    },
+    "stdout": {
+      "complete": true,
+      "observedBytes": 35,
+      "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+      "storedBytes": 35
+    },
+    "taskId": "task_fbf26fcb-a8b0-4777-b0ce-75609f132cf1",
+    "timedOut": false,
+    "unitId": "check"
+  },
+  {
+    "acceptanceUnitId": "inspection",
+    "argv": [
+      "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+      "-e",
+      "process.stdout.write(require('node:fs').readFileSync(process.argv[1]))",
+      "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-uTqAoz/project/protected.txt"
+    ],
+    "cancelled": false,
+    "capsuleDigest": "95e5b03edb66a0e453352bfb73843a20b605ac7cf2529720bc03c2cf05a3ae26",
+    "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-uTqAoz/project",
+    "descendantsReaped": null,
+    "durationMs": 83,
+    "endedAt": "2026-09-13T14:34:37.865Z",
+    "environmentHandleId": null,
+    "episodeId": "episode_0de56a59-3ff4-4f78-9f6e-2a4f0fdbf856",
+    "exitCode": 0,
+    "externalEffectsAccounting": "complete_for_declared_scope",
+    "id": "exec_9ffc000b-6e87-4163-bc0c-a9518d130c49",
+    "processIdentity": {
+      "groupId": 1876635,
+      "pid": 1876635,
+      "startIdentity": "spawned:2026-09-13T14:34:37.783Z"
+    },
+    "publicEnvironment": {},
+    "recipeDigest": "dcf9a99a0fd60ff10db752a6499a4dbca3ae0c29614b55e1e16184fb8b2e71e6",
+    "recipeId": "project.inspect",
+    "requestId": "inspection:0",
+    "schemaVersion": 1,
+    "signal": null,
+    "spawnError": null,
+    "startedAt": "2026-09-13T14:34:37.783Z",
+    "stderr": {
+      "complete": true,
+      "observedBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storedBytes": 0
+    },
+    "stdout": {
+      "complete": true,
+      "observedBytes": 27,
+      "sha256": "cfc40371b5e27525af5497aa75312dbf0cb6855d2dde4bdde3851bd15bb4fa59",
+      "storedBytes": 27
+    },
+    "taskId": "task_fbf26fcb-a8b0-4777-b0ce-75609f132cf1",
+    "timedOut": false,
+    "unitId": "inspection"
+  }
+]

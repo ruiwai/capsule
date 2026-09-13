@@ -1,0 +1,30 @@
+
+> pi-capsule@0.1.0 test:acceptance
+> vitest run tests/scripted.test.ts --reporter=verbose
+
+
+ RUN  v4.1.9 /home/hilaolu/capsule
+
+(node:1876607) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A01 public execution to evidence, persisted report and named-unit review 969ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A02 public rejects executable parameters, unresolved/disabled authority and prohibited effects 274ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A03 identical sequential/concurrent public submissions reuse one task and action 1710ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A04 immutable registered builders reject copied digests and denied genuine capabilities 1027ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A05 synchronized separate controller processes own one admitted task/action 1244ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A06 expired and reported lifecycle persists in newly launched processes 2082ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A07 tool/time reservations and slow persistence prevent excess spawns 3561ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A08 intent failure has no effect, restart cannot replay, live duplicates join 1024ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A09 strict/semantic/zero-recovery stops resist fresh IDs; allowed recovery succeeds 3307ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A10 preabort, late descendant streams and TERM/KILL are bounded and truthful 946ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A11 process-safe restarted quota, corrupt reuse/read and truthful truncation 583ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A12 reader exit zero cannot certify false/null structured units or fabricated draft evidence 1937ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A13 task-indexed evidence rejects traversal, foreign artifacts, ranges and symlink escape 813ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A14 current scoped review rejects missing/mismatched/incomplete/stale and conflicting decisions 2075ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A15 exact saved capsule retains complete intent and malformed durable identity fails closed 229ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  22:34:36
+   Duration  22.21s (transform 159ms, setup 0ms, import 300ms, tests 21.79s, environment 0ms)
+

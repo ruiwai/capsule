@@ -1,0 +1,13 @@
+{
+  "acceptedUnits": [
+    "inspection",
+    "check"
+  ],
+  "decision": "accept",
+  "decisionId": "synthetic-decision",
+  "episodeId": "episode_aed248d7-bdd8-4dde-9b6a-7fa2aeb82c49",
+  "rationale": "All named synthetic criteria verified from actual receipts",
+  "reportDigest": "06e46c640f7158f77c88c779b9d3ee6f35de2d9ec8bc5f94bba8d322e9780510",
+  "reportId": "report_6845da9c-6978-451d-b065-86ca33669c53",
+  "taskId": "task_7cf3a352-58da-4b61-8bf6-6e6d99bc8504"
+}

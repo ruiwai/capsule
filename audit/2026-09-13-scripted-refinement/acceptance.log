@@ -1,0 +1,34 @@
+
+> pi-capsule@0.1.0 test:acceptance
+> vitest run tests/scripted.test.ts tests/boundary-refinement.test.ts --reporter=verbose
+
+
+ RUN  v4.1.9 /home/hilaolu/capsule
+
+(node:1892169) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1892170) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/boundary-refinement.test.ts > scripted boundary refinements > captures action identity before yielding to caller mutations 522ms
+ ✓ tests/boundary-refinement.test.ts > scripted boundary refinements > rejects malformed public envelopes before domain work 34ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A01 public execution to evidence, persisted report and named-unit review 1022ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A02 public rejects executable parameters, unresolved/disabled authority and prohibited effects 331ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A03 identical sequential/concurrent public submissions reuse one task and action 1684ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A04 immutable registered builders reject copied digests and denied genuine capabilities 1154ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A05 synchronized separate controller processes own one admitted task/action 1337ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A06 expired and reported lifecycle persists in newly launched processes 2043ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A07 tool/time reservations and slow persistence prevent excess spawns 3482ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A08 intent failure has no effect, restart cannot replay, live duplicates join 973ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A09 strict/semantic/zero-recovery stops resist fresh IDs; allowed recovery succeeds 3298ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A10 preabort, late descendant streams and TERM/KILL are bounded and truthful 938ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A11 process-safe restarted quota, corrupt reuse/read and truthful truncation 598ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A12 reader exit zero cannot certify false/null structured units or fabricated draft evidence 1933ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A13 task-indexed evidence rejects traversal, foreign artifacts, ranges and symlink escape 826ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A14 current scoped review rejects missing/mismatched/incomplete/stale and conflicting decisions 2045ms
+ ✓ tests/scripted.test.ts > durable scripted A01–A15 (synthetic fixtures) > A15 exact saved capsule retains complete intent and malformed durable identity fails closed 192ms
+
+ Test Files  2 passed (2)
+      Tests  17 passed (17)
+   Start at  22:51:01
+   Duration  22.30s (transform 316ms, setup 0ms, import 573ms, tests 22.42s, environment 0ms)
+

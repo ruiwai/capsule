@@ -1,0 +1,228 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": [
+    {
+      "id": "report_699e43e9-83bf-4479-b359-2cfd0eb3c69c",
+      "taskId": "task_1226a206-7df8-4c04-8d48-da96215fccc8",
+      "episodeId": "episode_34fb9300-392d-4317-9b49-6a0c2bf74399",
+      "capsuleDigest": "f9c855a561274f8d9b6bf8cfa0a1340c0cf039557722efb8fc0785777be8825f",
+      "draftStatus": "invalid",
+      "summary": "Controller fallback: authoritative receipts and verifiers only.",
+      "evidenceComplete": true,
+      "protected": true,
+      "evidence": [
+        {
+          "executionId": "exec_2bd66e68-a495-4fbb-9e4d-96315c905efe",
+          "complete": true,
+          "observedBytes": 27,
+          "sha256": "cfc40371b5e27525af5497aa75312dbf0cb6855d2dde4bdde3851bd15bb4fa59",
+          "storedBytes": 27
+        },
+        {
+          "executionId": "exec_2bd66e68-a495-4fbb-9e4d-96315c905efe",
+          "complete": true,
+          "observedBytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "storedBytes": 0
+        },
+        {
+          "executionId": "exec_737aad2f-8602-443d-bb37-3872554b9493",
+          "complete": true,
+          "observedBytes": 37,
+          "sha256": "d73ce475ded720ec8f9ea3ea1bf871ac7fd6f3670ec96e853c8518b572b6f5f8",
+          "storedBytes": 37
+        },
+        {
+          "executionId": "exec_737aad2f-8602-443d-bb37-3872554b9493",
+          "complete": true,
+          "observedBytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "storedBytes": 0
+        }
+      ],
+      "criteria": [
+        {
+          "id": "inspection-protected",
+          "kind": "protected",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "inspection-completion",
+          "kind": "completion",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "inspection-evidence",
+          "kind": "evidence",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "check-protected",
+          "kind": "protected",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-completion",
+          "kind": "completion",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-evidence",
+          "kind": "evidence",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-structured",
+          "kind": "structured",
+          "required": true,
+          "unitId": "check",
+          "verification": "fail"
+        }
+      ],
+      "units": [
+        {
+          "unitId": "inspection",
+          "description": "Read approved protected file",
+          "executionState": "completed",
+          "verification": "pass",
+          "acceptance": "pending",
+          "executionId": "exec_2bd66e68-a495-4fbb-9e4d-96315c905efe"
+        },
+        {
+          "unitId": "check",
+          "description": "Synthetic certification must be true and complete",
+          "executionState": "completed",
+          "verification": "fail",
+          "acceptance": "pending",
+          "executionId": "exec_737aad2f-8602-443d-bb37-3872554b9493"
+        }
+      ],
+      "environmentHandle": null,
+      "digest": "07c162931a9ddc3b492c3fb5827d40bc14e4f0670ce767f7f8263a3978a02d65"
+    },
+    {
+      "id": "report_28733178-600a-4d50-86d9-4ad144a6d7ba",
+      "taskId": "task_d2ece36b-74a7-4e5f-90e2-7a45850efa51",
+      "episodeId": "episode_02154bce-1a30-4db2-9d2a-e1c4ff1162e5",
+      "capsuleDigest": "2be3759cf75b75a57e147bb1034d2652948746de7e6e4fc9dd169f2d033b2680",
+      "draftStatus": "invalid",
+      "summary": "Controller fallback: authoritative receipts and verifiers only.",
+      "evidenceComplete": true,
+      "protected": true,
+      "evidence": [
+        {
+          "executionId": "exec_af7ff76a-fe85-40b8-9db4-0b09d1434f9c",
+          "complete": true,
+          "observedBytes": 27,
+          "sha256": "cfc40371b5e27525af5497aa75312dbf0cb6855d2dde4bdde3851bd15bb4fa59",
+          "storedBytes": 27
+        },
+        {
+          "executionId": "exec_af7ff76a-fe85-40b8-9db4-0b09d1434f9c",
+          "complete": true,
+          "observedBytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "storedBytes": 0
+        },
+        {
+          "executionId": "exec_40602e29-9e47-4e18-b672-85993b1db19a",
+          "complete": true,
+          "observedBytes": 35,
+          "sha256": "86a7c7bb46137d7a071b9875d3ea1008e465636181d776da51d33ee0e98ca029",
+          "storedBytes": 35
+        },
+        {
+          "executionId": "exec_40602e29-9e47-4e18-b672-85993b1db19a",
+          "complete": true,
+          "observedBytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "storedBytes": 0
+        }
+      ],
+      "criteria": [
+        {
+          "id": "inspection-protected",
+          "kind": "protected",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "inspection-completion",
+          "kind": "completion",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "inspection-evidence",
+          "kind": "evidence",
+          "required": true,
+          "unitId": "inspection",
+          "verification": "pass"
+        },
+        {
+          "id": "check-protected",
+          "kind": "protected",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-completion",
+          "kind": "completion",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-evidence",
+          "kind": "evidence",
+          "required": true,
+          "unitId": "check",
+          "verification": "pass"
+        },
+        {
+          "id": "check-structured",
+          "kind": "structured",
+          "required": true,
+          "unitId": "check",
+          "verification": "fail"
+        }
+      ],
+      "units": [
+        {
+          "unitId": "inspection",
+          "description": "Read approved protected file",
+          "executionState": "completed",
+          "verification": "pass",
+          "acceptance": "pending",
+          "executionId": "exec_af7ff76a-fe85-40b8-9db4-0b09d1434f9c"
+        },
+        {
+          "unitId": "check",
+          "description": "Synthetic certification must be true and complete",
+          "executionState": "completed",
+          "verification": "fail",
+          "acceptance": "pending",
+          "executionId": "exec_40602e29-9e47-4e18-b672-85993b1db19a"
+        }
+      ],
+      "environmentHandle": null,
+      "digest": "9277d5d6564cb56a720997e6924a9487df15f26288c657ca411986559ecc6640"
+    }
+  ]
+}

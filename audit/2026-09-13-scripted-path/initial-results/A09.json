@@ -1,0 +1,149 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "stops": [
+      {
+        "schemaVersion": 1,
+        "id": "exec_b8e59d0b-240b-4e58-b748-6e85e858ed08",
+        "taskId": "task_398182b3-ec71-44b4-8820-418a31847cd3",
+        "episodeId": "episode_7e86fa51-b0b6-4f1e-be11-103595cf9922",
+        "requestId": "check:0",
+        "capsuleDigest": "1c598adee53248d1c3ebfbc7e482980f55b318d6cb1ff6380d9e184bc468a29e",
+        "unitId": "check",
+        "recipeId": "check.fixture",
+        "recipeDigest": "97fb792339c64a15e2f944f61e00aabb11b6a4cf3b187a3978dbf92235c44157",
+        "acceptanceUnitId": "check",
+        "argv": [
+          "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+          "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+          "fail"
+        ],
+        "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-c7iPr0/project",
+        "publicEnvironment": {},
+        "environmentHandleId": null,
+        "startedAt": "2026-09-13T14:25:29.587Z",
+        "endedAt": "2026-09-13T14:25:29.668Z",
+        "durationMs": 81,
+        "processIdentity": {
+          "pid": 1866332,
+          "startIdentity": "spawned:2026-09-13T14:25:29.587Z",
+          "groupId": 1866332
+        },
+        "spawnError": null,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "cancelled": false,
+        "descendantsReaped": null,
+        "externalEffectsAccounting": "complete_for_declared_scope",
+        "stdout": {
+          "sha256": "d73ce475ded720ec8f9ea3ea1bf871ac7fd6f3670ec96e853c8518b572b6f5f8",
+          "storedBytes": 37,
+          "observedBytes": 37,
+          "complete": true
+        },
+        "stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "storedBytes": 0,
+          "observedBytes": 0,
+          "complete": true
+        }
+      },
+      {
+        "schemaVersion": 1,
+        "id": "exec_36563484-4465-485e-bb6a-067543aac4be",
+        "taskId": "task_8fa3e345-3d27-41f2-9b11-49f2164b62ab",
+        "episodeId": "episode_fb4f0ec1-9981-4ff7-94b9-b7dc3043eb35",
+        "requestId": "check:0",
+        "capsuleDigest": "f5fca82963b64d01658a1c52cecc36463786b04dd4b7c62ee324379d153eb6b1",
+        "unitId": "check",
+        "recipeId": "check.fixture",
+        "recipeDigest": "97fb792339c64a15e2f944f61e00aabb11b6a4cf3b187a3978dbf92235c44157",
+        "acceptanceUnitId": "check",
+        "argv": [
+          "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+          "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+          "fail"
+        ],
+        "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-A7x8Ua/project",
+        "publicEnvironment": {},
+        "environmentHandleId": null,
+        "startedAt": "2026-09-13T14:25:30.224Z",
+        "endedAt": "2026-09-13T14:25:30.305Z",
+        "durationMs": 81,
+        "processIdentity": {
+          "pid": 1866339,
+          "startIdentity": "spawned:2026-09-13T14:25:30.224Z",
+          "groupId": 1866339
+        },
+        "spawnError": null,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "cancelled": false,
+        "descendantsReaped": null,
+        "externalEffectsAccounting": "complete_for_declared_scope",
+        "stdout": {
+          "sha256": "d73ce475ded720ec8f9ea3ea1bf871ac7fd6f3670ec96e853c8518b572b6f5f8",
+          "storedBytes": 37,
+          "observedBytes": 37,
+          "complete": true
+        },
+        "stderr": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "storedBytes": 0,
+          "observedBytes": 0,
+          "complete": true
+        }
+      }
+    ],
+    "recovered": {
+      "schemaVersion": 1,
+      "id": "exec_df47f7a7-e5aa-4b36-b418-80753bc67e4b",
+      "taskId": "task_3e8e0d58-4b3c-44d1-8021-d250f5bcc2ef",
+      "episodeId": "episode_828fbc0a-eca2-4fdf-b7e8-8f6971f1f08b",
+      "requestId": "check:1",
+      "capsuleDigest": "a36176729fc1a8298f89ff5894d8d877209b8e2b969945373739567941efc49f",
+      "unitId": "check",
+      "recipeId": "check.fixture",
+      "recipeDigest": "97fb792339c64a15e2f944f61e00aabb11b6a4cf3b187a3978dbf92235c44157",
+      "acceptanceUnitId": "check",
+      "argv": [
+        "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+        "/home/hilaolu/capsule/tests/fixtures/scripted-check.cjs",
+        "recover"
+      ],
+      "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-qFqNJA/project",
+      "publicEnvironment": {},
+      "environmentHandleId": null,
+      "startedAt": "2026-09-13T14:25:31.141Z",
+      "endedAt": "2026-09-13T14:25:31.207Z",
+      "durationMs": 66,
+      "processIdentity": {
+        "pid": 1866412,
+        "startIdentity": "spawned:2026-09-13T14:25:31.141Z",
+        "groupId": 1866412
+      },
+      "spawnError": null,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "cancelled": false,
+      "descendantsReaped": null,
+      "externalEffectsAccounting": "complete_for_declared_scope",
+      "stdout": {
+        "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+        "storedBytes": 35,
+        "observedBytes": 35,
+        "complete": true
+      },
+      "stderr": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "storedBytes": 0,
+        "observedBytes": 0,
+        "complete": true
+      }
+    }
+  }
+}

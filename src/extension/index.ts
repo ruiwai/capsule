@@ -1,33 +1,39 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { readFile, mkdir, appendFile, writeFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
-import { digestRecord, sha256 } from "../contracts/identity.js";
-import { compileCapsule } from "../context/compile.js";
-import { validateTaskRequest } from "../contracts/validate.js";
-import { Controller } from "../controller/controller.js";
-import { defaultRegistry } from "../recipes/registry.js";
-import { compileRecipe } from "../recipes/compile.js";
+import { ScriptedService } from "../controller/scripted.js";
+import { object, text } from "../controller/scripted-contract.js";
 
-type Config = { stateRoot: string; policy: any };
-async function configuration(): Promise<Config> {
-  const file = process.env.CAPSULE_OPERATOR_CONFIG;
-  if (!file) throw new Error("configuration_required: set CAPSULE_OPERATOR_CONFIG");
-  let value: any; try { value = JSON.parse(await readFile(resolve(file), "utf8")); } catch { throw new Error(`configuration_required: cannot read ${file}`); }
-  if (!value.stateRoot || !value.policy) throw new Error("configuration_required: stateRoot and policy are required");
-  return { stateRoot: resolve(value.stateRoot), policy: value.policy };
+/** Both adapters use this boundary; caller identity comes only from trusted
+ * operator configuration, never from a model-supplied issuer field. */
+export async function publicCall(name: string, p: any, signal?: AbortSignal) {
+  if (!["delegate_episode", "read_evidence", "decide_episode"].includes(name)) {
+    throw Error("unsupported public operation");
+  }
+  if (name === "delegate_episode") object(p, ["request"]);
+  if (name === "read_evidence") {
+    const optional = ["start", "end"].filter(key =>
+      p !== null && typeof p === "object" && Object.hasOwn(p, key));
+    object(p, ["taskId", "executionId", "stream", ...optional]);
+    [p.taskId, p.executionId, p.stream].forEach(text);
+  }
+  const path = process.env.CAPSULE_OPERATOR_CONFIG;
+  if (!path) throw Error("configuration_required: CAPSULE_OPERATOR_CONFIG");
+  const service = new ScriptedService(path);
+  try {
+    if (name === "delegate_episode") return await service.runRequest(p.request, signal);
+    if (name === "read_evidence") return await service.evidence(p.taskId, p.executionId, p.stream, p.start, p.end);
+    if (name === "decide_episode") return service.decide(p);
+    throw Error("unsupported public operation");
+  } finally { service.close(); }
 }
 export default function capsuleExtension(pi: ExtensionAPI) {
-  pi.registerTool(({ name: "delegate_episode", label: "Delegate capsule", description: "Admit and execute a registry recipe from an immutable task request", parameters: Type.Object({ request: Type.String() }), async execute(_id: string, p: any) {
-    try { const cfg = await configuration(); const request = JSON.parse(await readFile(resolve(p.request), "utf8")); validateTaskRequest(request); if (request.mode === "adaptive") throw new Error("unsupported: adaptive Luna workflow is not connected; no execution performed");
-      const requestDigest = sha256(JSON.stringify(request)); const ledger = join(cfg.stateRoot, "client-requests.jsonl"); await mkdir(cfg.stateRoot,{recursive:true,mode:0o700});
-      try { for (const line of (await readFile(ledger,"utf8")).split("\n").filter(Boolean)) { const old=JSON.parse(line); if(old.clientRequestId===request.clientRequestId){ if(old.requestDigest!==requestDigest) throw new Error("invalid_contract: clientRequestId was reused with changed content"); if(old.receipt) return {content:[{type:"text",text:JSON.stringify(old.receipt)}],details:{status:"completed",receipt:old.receipt}}; throw new Error("in_progress: request is already admitted"); } } } catch(e:any){if(e?.code!=="ENOENT")throw e}
-      const registry = defaultRegistry(); const capsule = compileCapsule(request, cfg.policy, { id: "operator-snapshot", digest: sha256(JSON.stringify(request.workspace)) }, registry.digests()); const recipeId = String((request as any).recipeId ?? "project.inspect"); if(!capsule.effectiveCapabilities.recipes.includes(recipeId)) throw new Error("permission_missing: recipe not authorized"); const recipe = registry.get(recipeId); const params = (request as any).recipeParams; if (!params || typeof params.target !== "string" || Object.keys(params).some(k=>!["target","args","installable","innerEnv","loader","libraryPath"].includes(k))) throw new Error("invalid_contract: typed recipeParams required"); const controller = new Controller(capsule, cfg.stateRoot); await controller.init(); const spec = compileRecipe(recipe, { projectRoot: String(request.workspace.projectRoot), ...params }); const receipt = await controller.action(request.clientRequestId, recipe, { ...spec, timeoutMs: recipe.maximumMs }, { unitId: request.acceptanceUnit.id }); await appendFile(ledger,JSON.stringify({clientRequestId:request.clientRequestId,requestDigest,taskId:capsule.taskId,receipt})+"\n"); const indexPath=join(cfg.stateRoot,"task-index.json"); let index:any={};try{index=JSON.parse(await readFile(indexPath,"utf8"))}catch{} index[capsule.taskId]=true; await writeFile(indexPath,JSON.stringify(index),{mode:0o600}); return { content: [{ type: "text", text: JSON.stringify(receipt) }], details: { status: "completed", receipt } }; } catch (e) { return { content: [{ type: "text", text: String(e) }], details: { status: "rejected", actionable: true } }; }
-  }} as any));
-  pi.registerTool(({ name: "read_evidence", label: "Read capsule evidence", description: "Retrieve a digest-bound evidence range", parameters: Type.Object({ taskId: Type.String(), digest: Type.String(), start: Type.Optional(Type.Number()), end: Type.Optional(Type.Number()) }), async execute(_id: string, p: any) {
-    try { const cfg = await configuration(); if(typeof p.taskId!=="string"||!/^[a-z]+_[a-z0-9-]+$/.test(p.taskId)||typeof p.digest!=="string"||!/^[a-f0-9]{64}$/.test(p.digest)) throw new Error("invalid_contract: task/evidence identifier"); const index=JSON.parse(await readFile(join(resolve(cfg.stateRoot),"task-index.json"),"utf8")); if(index[p.taskId]!==p.digest && index[p.taskId]!==true) throw new Error("permission_denied: task is not authorized"); const start=p.start??0,end=p.end; if(!Number.isInteger(start)||start<0||end!==undefined&&(!Number.isInteger(end)||end<start))throw new Error("invalid_contract: range"); const path = join(resolve(cfg.stateRoot), p.taskId, "evidence", p.digest); const bytes = await readFile(path); if (sha256(bytes) !== p.digest) throw new Error("evidence_integrity: digest mismatch"); return { content: [{ type: "text", text: bytes.subarray(start, end).toString() }], details: { sha256: p.digest, bytes: bytes.length } }; } catch (e) { return { content: [{ type: "text", text: String(e) }], details: { status: "rejected" } }; }
-  }} as any));
-  pi.registerTool({ name: "decide_episode", label: "Decide capsule", description: "Persist a scoped supervisor decision", parameters: Type.Object({ reportId: Type.String(), decision: Type.Union([Type.Literal("accept"), Type.Literal("reject"), Type.Literal("request_revision")]), rationale: Type.String() }), execute: async (_id, p) => {
-    try { const cfg = await configuration(); if (!/^[a-z]+_[a-z0-9-]+$/.test(p.reportId)||!p.rationale.trim()) throw new Error("invalid_contract: rationale required"); const reports=JSON.parse(await readFile(join(resolve(cfg.stateRoot),"reports.json"),"utf8")); const report=reports[p.reportId]; if(!report||report.digest!==digestRecord(report)) throw new Error("invalid_contract: report is absent or stale"); const path = join(resolve(cfg.stateRoot), "decisions.jsonl"); await mkdir(resolve(cfg.stateRoot), { recursive: true }); const decision = { reportId:p.reportId,decision:p.decision,rationale:p.rationale,reportDigest:report.digest,at: new Date().toISOString() }; await appendFile(path, JSON.stringify(decision) + "\n"); return { content: [{ type: "text", text: JSON.stringify(decision) }], details: { recorded: true } }; } catch (e) { return { content: [{ type: "text", text: String(e) }], details: { recorded: false } }; }
-  }});
+  const tools = [
+    { name: "delegate_episode", parameters: Type.Object({ request: Type.Unknown() }, { additionalProperties: false }) },
+    { name: "read_evidence", parameters: Type.Object({ taskId: Type.String(), executionId: Type.String(), stream: Type.Union([Type.Literal("stdout"), Type.Literal("stderr")]), start: Type.Optional(Type.Integer({ minimum: 0 })), end: Type.Optional(Type.Integer({ minimum: 0 })) }, { additionalProperties: false }) },
+    { name: "decide_episode", parameters: Type.Object({ taskId: Type.String(), episodeId: Type.String(), reportId: Type.String(), reportDigest: Type.String(), decisionId: Type.String(), acceptedUnits: Type.Array(Type.String()), decision: Type.Union([Type.Literal("accept"), Type.Literal("reject")]), rationale: Type.String() }, { additionalProperties: false }) },
+  ];
+  for (const tool of tools) pi.registerTool({ ...tool, label: tool.name, description: "Authorized durable scripted capsule service", async execute(_id: string, p: any, signal?: AbortSignal) {
+    try { const value = await publicCall(tool.name, p, signal); return { content: [{ type: "text", text: JSON.stringify(value) }], details: { status: "completed", value } }; }
+    catch (e) { return { content: [{ type: "text", text: String(e) }], details: { status: "rejected" } }; }
+  } } as any);
 }

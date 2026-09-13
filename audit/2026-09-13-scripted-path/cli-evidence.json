@@ -1,0 +1,9 @@
+{
+  "artifact": {
+    "complete": true,
+    "observedBytes": 35,
+    "sha256": "0768f2673d6c1792c1ea355bf3013137fb9282a73c2e85b5a5831b39f28f117b",
+    "storedBytes": 35
+  },
+  "text": "{\"certified\":true,\"complete\":true}\n"
+}

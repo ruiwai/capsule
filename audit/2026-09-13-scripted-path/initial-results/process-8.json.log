@@ -1,0 +1,3 @@
+{"value":{"sha256":"ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f","storedBytes":8,"observedBytes":8,"complete":true},"pid":1866441}
+(node:1866441) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

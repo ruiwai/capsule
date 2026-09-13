@@ -1,0 +1,107 @@
+{
+  "classification": "synthetic executed acceptance",
+  "result": "PASS",
+  "value": {
+    "late": {
+      "schemaVersion": 1,
+      "id": "exec_a8daba37-648e-40d6-819a-30db91196657",
+      "taskId": "synthetic",
+      "episodeId": "e",
+      "requestId": "r",
+      "capsuleDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "unitId": "u",
+      "recipeId": "fixture",
+      "recipeDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "acceptanceUnitId": "u",
+      "argv": [
+        "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+        "-e",
+        "const c=require('child_process').spawn(process.execPath,['-e',\"setTimeout(()=>console.log('LATE'),100);setTimeout(()=>{},10000)\"],{stdio:['ignore',1,2]});require('fs').writeFileSync('child.pid',String(c.pid));c.unref();process.exit(0)"
+      ],
+      "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-Hcfrj7/project",
+      "publicEnvironment": {},
+      "environmentHandleId": null,
+      "startedAt": "2026-09-13T14:51:17.433Z",
+      "endedAt": "2026-09-13T14:51:17.813Z",
+      "durationMs": 380,
+      "processIdentity": {
+        "pid": 1892572,
+        "startIdentity": "spawned:2026-09-13T14:51:17.433Z",
+        "groupId": 1892572
+      },
+      "spawnError": null,
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "cancelled": false,
+      "descendantsReaped": null,
+      "externalEffectsAccounting": "incomplete",
+      "stdout": {
+        "sha256": "59b73bc6bf34c3793b3562beb57c7e408830ff18e93870eba37b750f58e3a19c",
+        "storedBytes": 5,
+        "observedBytes": 5,
+        "complete": false
+      },
+      "stderr": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "storedBytes": 0,
+        "observedBytes": 0,
+        "complete": false
+      }
+    },
+    "bytes": "LATE\n",
+    "childPid": 1892579,
+    "childState": "absent",
+    "terminated": {
+      "schemaVersion": 1,
+      "id": "exec_cd15029f-15cd-49ee-99f7-45f97309d23f",
+      "taskId": "synthetic",
+      "episodeId": "e",
+      "requestId": "r",
+      "capsuleDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "unitId": "u",
+      "recipeId": "fixture",
+      "recipeDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "acceptanceUnitId": "u",
+      "argv": [
+        "/nix/store/2gd4h12irmnanhg33md2rpjygrsj5ypb-nodejs-slim-22.23.2/bin/node",
+        "-e",
+        "process.on('SIGTERM',()=>{}); console.log('started');setInterval(()=>{},100)"
+      ],
+      "cwd": "/tmp/nix-shell.zv90vP/capsule-scripted-synthetic-Hcfrj7/project",
+      "publicEnvironment": {
+        "AUTHORIZATION": "[REDACTED]",
+        "UNLISTED": "[REDACTED]",
+        "LANG": "C"
+      },
+      "environmentHandleId": null,
+      "startedAt": "2026-09-13T14:51:17.917Z",
+      "endedAt": "2026-09-13T14:51:18.342Z",
+      "durationMs": 425,
+      "processIdentity": {
+        "pid": 1892606,
+        "startIdentity": "spawned:2026-09-13T14:51:17.917Z",
+        "groupId": 1892606
+      },
+      "spawnError": null,
+      "exitCode": null,
+      "signal": "SIGKILL",
+      "timedOut": false,
+      "cancelled": true,
+      "descendantsReaped": null,
+      "externalEffectsAccounting": "complete_for_declared_scope",
+      "stdout": {
+        "sha256": "eff64b343dcb2b1dc113648e7089b9ce9f8a7f6c7808a03a2cffb4ad7302f606",
+        "storedBytes": 8,
+        "observedBytes": 8,
+        "complete": true
+      },
+      "stderr": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "storedBytes": 0,
+        "observedBytes": 0,
+        "complete": true
+      }
+    }
+  }
+}

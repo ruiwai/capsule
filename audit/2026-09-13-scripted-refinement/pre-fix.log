@@ -1,0 +1,49 @@
+
+ RUN  v4.1.9 /home/hilaolu/capsule
+
+(node:1890203) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/boundary-refinement.test.ts (2 tests | 2 failed) 543ms
+     × captures action identity before yielding to caller mutations 510ms
+     × rejects malformed public envelopes before domain work 32ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/boundary-refinement.test.ts > scripted boundary refinements > captures action identity before yielding to caller mutations
+AssertionError: expected 'check' to be 'inspection' // Object.is equality
+
+Expected: "inspection"
+Received: "check"
+
+ ❯ tests/boundary-refinement.test.ts:17:40
+     15|
+     16|       const receipt = await live;
+     17|       expect(receipt.acceptanceUnitId).toBe("inspection");
+       |                                        ^
+     18|       expect(receipt.requestId).toBe("inspection:0");
+     19|       expect(existsSync(join(f.project, "effects"))).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/boundary-refinement.test.ts > scripted boundary refinements > rejects malformed public envelopes before domain work
+AssertionError: expected [Function] to throw error including 'invalid_contract' but got 'Cannot use \'in\' operator to search …'
+
+Expected: "invalid_contract"
+Received: "Cannot use 'in' operator to search for 'start' in null"
+
+ ❯ tests/boundary-refinement.test.ts:31:57
+     29|     try {
+     30|       for (const value of [null, false, 1, "text", []]) {
+     31|         await expect(publicCall("read_evidence", value)).rejects.toThr…
+       |                                                         ^
+     32|       }
+     33|       await expect(publicCall("unsupported", {})).rejects.toThrow("uns…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  22:49:22
+   Duration  960ms (transform 130ms, setup 0ms, import 272ms, tests 543ms, environment 0ms)
+

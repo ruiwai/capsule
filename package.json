@@ -6,8 +6,8 @@
   "description": "Evidence-bound Pi delegation controller",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run tests/contracts.test.ts tests/runtime.test.ts tests/stabilization.test.ts",
-    "test:acceptance": "vitest run tests/contracts.test.ts tests/runtime.test.ts tests/stabilization.test.ts",
+    "test": "vitest run",
+    "test:acceptance": "vitest run tests/scripted.test.ts tests/boundary-refinement.test.ts --reporter=verbose",
     "check": "npm run build && npm test",
     "compat": "tsx src/cli.ts compat",
     "demo": "tsx src/cli.ts demo",
