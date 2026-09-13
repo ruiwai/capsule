@@ -4,8 +4,9 @@ import { isAbsolute } from "node:path";
 import { ScriptedService } from "../controller/scripted.js";
 import { object, text } from "../controller/scripted-contract.js";
 import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } from "../capsule/contracts.js";
-import { PiSdkBackend, resolveConfiguredModel } from "../capsule/backend.js";
+import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel } from "../capsule/backend.js";
 import { CapsuleService } from "../capsule/service.js";
+import { capsuleRenderers } from "./renderer.js";
 
 /** Both adapters use this boundary; caller identity comes only from trusted
  * operator configuration, never from a model-supplied issuer field. */
@@ -46,6 +47,7 @@ export function scriptedExtension(pi: ExtensionAPI) {
 
 export default function capsuleExtension(pi: ExtensionAPI) {
   let service: CapsuleService | undefined;
+  let workerIdentity: { workerProvider: string; workerModel: string } | undefined;
   pi.registerTool({
     name: "delegate_capsule", label: "Delegate capsule to Flash",
     description: "Run one foreground Flash delegation and return its compact terminal handoff.",
@@ -53,8 +55,12 @@ export default function capsuleExtension(pi: ExtensionAPI) {
     async execute(_id, args, signal, _update, ctx) {
       try {
         if (!service) {
+          // A failed setup must not leave the previous worker's identity on its
+          // fallback result.
+          workerIdentity = undefined;
           const model = resolveConfiguredModel(ctx.modelRegistry, process.env.CAPSULE_FLASH_MODEL);
           const tools = (process.env.CAPSULE_FLASH_TOOLS ?? "read,bash,edit,write").split(",").map(x => x.trim()).filter(Boolean);
+          workerIdentity = { workerProvider: model.provider, workerModel: model.id };
           const stateRoot = process.env.CAPSULE_STATE_DIR;
           if (stateRoot && !isAbsolute(stateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");
           const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
@@ -63,12 +69,15 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs });
         }
         const value = await service.delegate(args, signal);
-        return { content: [{ type: "text", text: JSON.stringify(value) }], details: value };
+        return { content: [{ type: "text", text: JSON.stringify(value) }], details: { ...value, capsuleUi: workerIdentity } };
       } catch (error) {
         if ((error as any)?.name === "AbortError" || signal?.aborted) throw error;
         const value: DelegateCapsuleResult = { status: "error", notes: `Capsule setup failed before a result was established. Correct the configuration or runtime error and retry: ${String(error)}` };
-        return { content: [{ type: "text", text: JSON.stringify(value) }], details: value };
+        return { content: [{ type: "text", text: JSON.stringify(value) }], details: { ...value, capsuleUi: workerIdentity } };
       }
     },
+    ...capsuleRenderers(() => workerIdentity
+      ? `${workerIdentity.workerProvider}/${workerIdentity.workerModel}`
+      : (process.env.CAPSULE_FLASH_MODEL || DEFAULT_FLASH_MODEL)),
   });
 }

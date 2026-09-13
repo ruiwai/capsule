@@ -16,6 +16,8 @@ JIT, and parent-owned watchdog described below. See
 
 ## Two tools, a small answer
 
+In Pi's TUI, `delegate_capsule` uses a compact custom renderer: the call shows a bounded Markdown capsule preview, Flash model, and optional timeout; results show the meaningful answer or inline failure notes. Expand a result to see retained notes/history paths (never their contents). The model-facing JSON content contract is unchanged.
+
 Parent agent call:
 
 ```json
