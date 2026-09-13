@@ -6,11 +6,11 @@ export const MAX_TIMER_MS = 2_147_483_647;
 
 export const DelegateCapsuleParameters = Type.Object({
   capsule: Type.String({ minLength: 1, maxLength: 32_000, pattern: nonBlank,
-    description: "Self-contained Markdown instructions for this delegation." }),
+    description: "Self-contained task contract: goal, cwd/input files or sources to explore, requirements and acceptance checks, allowed edits/commands, stop conditions, and required report fields/artifact paths. Include needed context; the worker cannot see the parent conversation." }),
   output_example: Type.String({ minLength: 1, pattern: nonBlank,
-    description: "Example-format text passed unchanged to Flash; it is not a result schema." }),
+    description: "Illustrative result format (JSON, table, list, or prose), passed unchanged to Flash; not a schema or an answer to copy. Show the evidence and artifact fields you need." }),
   timeout_s: Type.Optional(Type.Number({ exclusiveMinimum: 0,
-    description: "Optional per-call working timeout in seconds." })),
+    description: "Optional positive deadline in seconds, including startup and result preparation; overrides the configured default (300s unless changed)." })),
 }, { additionalProperties: false });
 
 export const JitEntryParameters = Type.Object({

@@ -1,6 +1,7 @@
 import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, type ExtensionAPI, type InlineExtension, type ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { mkdir } from "node:fs/promises";
 import { YieldParameters, validateYield, type YieldArgs } from "./contracts.js";
+import { WORKER_CAPSULE_PROMPT } from "./prompts.js";
 
 export type TranscriptRecord = { type: string; [key: string]: unknown };
 export type BackendOutcome = {
@@ -36,11 +37,11 @@ export function createWorkerExtension(
       const lessons = input.jit.length
         ? input.jit.map(x => `### ${x.topic}\n${x.content}\nProvenance: ${x.raw_history}`).join("\n\n")
         : "(none selected)";
-      return { systemPrompt: `${event.systemPrompt}\n\n# Capsule worker handoff\nUse ordinary tools adaptively. Call yield as the sole final tool call. Do not continue after yield. The plugin, not you, supplies retained paths. Never put transcript contents or transcript/session paths in notes or JITed_history. A completed yield requires result; a blocked yield requires explanatory notes and has no result.\n\n# Output example (format guidance only)\nPreserve this guidance as written. Its values illustrate format and are not an answer to copy. It is not a schema and your result is not checked against it.\n${input.outputExample}\n\n# Selected project JIT knowledge\n${lessons}` };
+      return { systemPrompt: `${event.systemPrompt}\n\n${WORKER_CAPSULE_PROMPT}\n\n# Output example (format only; not a schema or an answer to copy)\n${input.outputExample}\n\n# Selected project JIT knowledge (verify applicability)\n${lessons}` };
     });
     pi.registerTool({
       name: "yield", label: "Yield to the parent agent",
-      description: "Return the terminal delegation handoff. This must be the sole final tool call.",
+      description: "End the assignment with yield as the sole final tool call; do not continue afterward. Use completed with result for an established answer, including negative checks; use blocked with explanatory notes when completion needs parent input or unavailable prerequisites. JITed_history is required; use [] when there is no reusable lesson.",
       parameters: YieldParameters,
       async execute(_id, args) {
         validateYield(args);

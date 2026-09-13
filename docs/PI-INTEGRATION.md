@@ -31,10 +31,29 @@ that makes the parent agent poll for this foreground return. Pin and test any ac
 
 ## Hook and boundary map
 
+### Prompt stack
+
+- Parent: Pi's base/configured prompt and enabled resources → Capsule's short
+  `before_agent_start` delegation policy. The tool description owns example
+  calls; parameter descriptions own the task-contract fields.
+- Worker: a fresh SDK session using `DefaultResourceLoader`, with external
+  extensions, skills, templates, and context files disabled. Pi's normal
+  SYSTEM.md/APPEND_SYSTEM.md discovery still applies; those overrides are not
+  disabled by `noContextFiles`.
+- Worker hook: append bounded-execution/reporting guidance, the verbatim output
+  example once, and selected project JIT. The capsule is the user message, not
+  repeated in the system prompt. The `yield` tool alone owns terminal-call rules;
+  its schema owns the completed/blocked envelope.
+
+Plugin-owned wording and eight bounded call examples are centralized in
+[prompts.ts](../src/capsule/prompts.ts). No parent model selection or runtime
+permission changes are involved; prompt boundaries are not enforcement.
+
 | Existing surface / boundary | Refined responsibility |
 | --- | --- |
 | Parent `delegate_capsule` | Accept capsule, output example, and optional timeout; start parent supervision before awaited setup. |
-| Worker `before_agent_start` | Add selected JIT, unchanged output-example guidance, and yield instructions without duplicating the capsule. |
+| Parent `before_agent_start` | Keep substantive judgment with the parent; delegate bounded tool work only. |
+| Worker `before_agent_start` | Add bounded-work guidance, selected JIT, and unchanged output example without duplicating the capsule or tool instructions. |
 | Worker `yield` | Capture completed/blocked handoff. `result` is arbitrary JSON; only the fixed envelope is checked. |
 | Worker terminating result | End Flash only; do not forward its termination flag to the parent agent. |
 | Backend completion / settlement | Finalize normal yield once; not a reason to wait past the independent deadline. |

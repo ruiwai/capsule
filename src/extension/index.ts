@@ -7,6 +7,7 @@ import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } f
 import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel } from "../capsule/backend.js";
 import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
+import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
 
 /** Both adapters use this boundary; caller identity comes only from trusted
  * operator configuration, never from a model-supplied issuer field. */
@@ -48,9 +49,12 @@ export function scriptedExtension(pi: ExtensionAPI) {
 export default function capsuleExtension(pi: ExtensionAPI) {
   let service: CapsuleService | undefined;
   let workerIdentity: { workerProvider: string; workerModel: string } | undefined;
+  pi.on("before_agent_start", async event => ({
+    systemPrompt: `${event.systemPrompt}\n\n${PARENT_CAPSULE_PROMPT}`,
+  }));
   pi.registerTool({
     name: "delegate_capsule", label: "Delegate capsule to Flash",
-    description: "Run one foreground Flash delegation and return its compact terminal handoff.",
+    description: DELEGATE_CAPSULE_DESCRIPTION,
     parameters: DelegateCapsuleParameters,
     async execute(_id, args, signal, _update, ctx) {
       try {

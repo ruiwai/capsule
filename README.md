@@ -4,7 +4,7 @@
 
 Pi Capsule is a context-engineering extension for supervised delegation in Pi.
 The Pi-selected parent agent supplies temporary direction and an example of the answer it needs. Flash
-investigates adaptively, yields, and leaves useful project-local JIT knowledge
+executes bounded tool work, yields, and leaves useful project-local JIT knowledge
 for the next delegation. Detailed history stays retrievable, not compulsory
 context on every turn. The [original proposal](docs/sources/ORIGINAL-PROPOSAL.txt)
 provides the context-injection, yield, and JIT lifecycle.
@@ -22,15 +22,24 @@ Parent agent call:
 
 ```json
 {
-  "capsule": "Run npm test and report whether it completed and passed. Do not change source or tests. Yield blocked if the result cannot be established.",
-  "output_example": "{\"ok\":true}",
+  "capsule": "Read package.json and tests/auth.test.ts in the workspace root. Run npm test -- tests/auth.test.ts once using installed dependencies. No edits, installs, or snapshot updates. Save output to artifacts/auth-test.log. Report exit code, test counts, and failing names; missing prerequisites are blockers.",
+  "output_example": "{\"exit\":1,\"passed\":4,\"failed\":1,\"failures\":[\"rejects expired token\"],\"log\":\"artifacts/auth-test.log\"}",
   "timeout_s": 120
 }
 ```
 
 Flash calls `yield({ reason, result?, notes?, JITed_history })`. The output example
-is text guidance, not a schema or literal answer. Trust Flash's answer; do not
-compile a type checker or add a formatting-repair loop.
+is text guidance, not a schema or literal answer. Review the reported evidence;
+do not compile a type checker or add a formatting-repair loop.
+
+Delegate searches, locked environment setup, requirement/smoke checks, specified
+compiler fixes, log extraction, existing test/workflow runs, scoped Git commands,
+and targeted paper retrieval. Keep diagnosis, architecture, interpretation,
+refactors, scientific synthesis/evaluation, hypotheses, trade-offs, and planning
+with the parent. Every capsule should name inputs, allowed actions, acceptance
+checks, stop conditions, and report/artifact destinations. Eight complete,
+schema-tested examples live in [prompts.ts](src/capsule/prompts.ts) and appear in
+the tool introduction.
 
 | Outcome | What the parent agent receives automatically |
 | --- | --- |

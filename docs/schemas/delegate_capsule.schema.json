@@ -8,15 +8,15 @@
   "properties": {
     "capsule": {
       "type": "string", "minLength": 1, "maxLength": 32000, "pattern": "\\S",
-      "description": "Self-contained instructions, context, constraints, local discretion, and yield gate."
+      "description": "Self-contained task contract: goal, cwd/input files or sources to explore, requirements and acceptance checks, allowed edits/commands, stop conditions, and required report fields/artifact paths. Include needed context; the worker cannot see the parent conversation."
     },
     "output_example": {
       "type": "string", "minLength": 1, "pattern": "\\S",
-      "description": "Self-explanatory example or format guidance passed verbatim to Flash. Does not need to be valid JSON."
+      "description": "Illustrative result format (JSON, table, list, or prose), passed unchanged to Flash; not a schema or an answer to copy. Show the evidence and artifact fields you need."
     },
     "timeout_s": {
       "type": "number", "exclusiveMinimum": 0, "default": 300,
-      "description": "Positive finite per-call seconds, overriding the plugin default. Runtime must handle timer range safely. Separate cleanup allowance: 5 seconds."
+      "description": "Optional positive deadline in seconds, including startup and result preparation; overrides the configured default (300s unless changed)."
     }
   }
 }

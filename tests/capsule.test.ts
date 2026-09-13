@@ -6,6 +6,7 @@ import { isAbsolute, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import capsuleExtension from "../src/extension/index.js";
+import { DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
 import { DEFAULT_FLASH_MODEL, createWorkerExtension, resolveConfiguredModel, type BackendOutcome, type CapsuleBackend } from "../src/capsule/backend.js";
@@ -35,6 +36,16 @@ function settled(marker: string, packet = handoff): BackendOutcome {
 }
 
 describe("refined Capsule contracts", () => {
+  it("keeps all eight task examples valid, with diverse result guidance", () => {
+    expect(DELEGATION_EXAMPLES).toHaveLength(8);
+    for (const { args } of DELEGATION_EXAMPLES) {
+      expect(() => validateDelegate(args)).not.toThrow();
+      expect(args.capsule).toMatch(/Report|report/);
+    }
+    expect(DELEGATION_EXAMPLES.some(x => x.args.timeout_s === undefined)).toBe(true);
+    expect(DELEGATION_EXAMPLES.some(x => x.args.output_example.startsWith("{"))).toBe(true);
+    expect(DELEGATION_EXAMPLES.some(x => x.args.output_example.startsWith("|"))).toBe(true);
+  });
   it("accepts text guidance and arbitrary completed JSON without checking its shape", () => {
     for (const output_example of ['{"ok":true}', "A short sentence in past tense."])
       expect(() => validateDelegate({ capsule: "Run it", output_example, timeout_s: 0.01 })).not.toThrow();
@@ -150,9 +161,19 @@ describe("parent/child tool separation", () => {
     expect(resolveConfiguredModel(registry as any, "other/custom")).toMatchObject({ provider: "other", id: "custom" });
     expect(finds).toEqual(["openai-codex/gpt-5.6-luna", "other/custom"]);
   });
-  it("registers only delegate_capsule for the parent agent", () => {
-    const tools: any[] = []; capsuleExtension({ registerTool: (tool: any) => tools.push(tool) } as any);
+  it("adds parent-only policy without duplicating it in the tool introduction", async () => {
+    const tools: any[] = [], hooks = new Map<string, any>();
+    capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: (name: string, handler: any) => hooks.set(name, handler) } as any);
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
+    const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
+    expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
+    expect(injected.systemPrompt).toContain("Batch independent tool calls in a single response");
+    expect(injected.systemPrompt).toContain("Wait when a call needs an earlier result");
+    expect(injected.systemPrompt).toContain("Keep delegate_capsule calls sequential within a workspace");
+    expect(injected.systemPrompt).not.toContain(WORKER_CAPSULE_PROMPT);
+    expect(tools[0].description).not.toContain(PARENT_CAPSULE_PROMPT);
+    for (const { args } of DELEGATION_EXAMPLES)
+      expect(tools[0].description.split(JSON.stringify(args))).toHaveLength(2);
   });
   it("injects exact example/JIT and exposes only terminating yield in Flash", async () => {
     const tools: any[] = [], hooks = new Map<string, any>(), state = { hooksRan: false, duplicate: false };
@@ -160,6 +181,11 @@ describe("parent/child tool separation", () => {
     await (extension as any)({ registerTool: (tool: any) => tools.push(tool), on: (name: string, handler: any) => hooks.set(name, handler) });
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toContain("PLAIN EXAMPLE"); expect(injected.systemPrompt).toContain(lesson);
+    expect(injected.systemPrompt.split("PLAIN EXAMPLE")).toHaveLength(2);
+    expect(injected.systemPrompt).toContain(WORKER_CAPSULE_PROMPT);
+    expect(injected.systemPrompt).not.toContain(PARENT_CAPSULE_PROMPT);
+    expect(injected.systemPrompt).not.toContain("sole final tool call");
+    expect(tools[0].description).toContain("sole final tool call");
     expect(tools.map(x => x.name)).toEqual(["yield"]);
     expect((await tools[0].execute("yield-1", handoff)).terminate).toBe(true);
     await expect(tools[0].execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
@@ -174,7 +200,7 @@ describe("parent/child tool separation", () => {
     vi.stubEnv("CAPSULE_STATE_DIR", undefined);
     vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
     try {
-      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), setModel } as any);
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: vi.fn(), setModel } as any);
       const ctx = { cwd: process.cwd(), modelRegistry: { find }, get model() { return parentModel(); } };
       const args = { capsule: "work", output_example: "Answer briefly" };
       await tools[0].execute("delegate-1", args, undefined, undefined, ctx);
