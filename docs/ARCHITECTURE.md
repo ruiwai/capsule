@@ -1,137 +1,89 @@
-# Architecture: supervision through context
+# Architecture: temporary direction, small returns, reusable lessons
 
-This is the intended design, grounded in the
-[original proposal](sources/ORIGINAL-PROPOSAL.txt), not a description of the
-currently enabled scripted runtime.
+The [original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the supervised
+context lifecycle. The [current interface](INTERFACES.md) refines the return
+format and timeout. A runtime already exists; these refinements are pending.
 
-## The division of work
+## Responsibilities
 
-**Astra** reads the user request and relevant context, makes key decisions, and
-supplies Luna with self-contained instructions. Architectural choices, important
-rationale, high-quality semantic patches, and review remain Astra's focus. Astra
-does not need to predict every diagnostic command before delegating.
+**Astra** owns task direction, important decisions, semantic judgment, and review.
+It supplies a self-contained capsule plus a self-explanatory output example.
+It need not predict every command or describe a formal result type.
 
-**Luna** follows the capsule, investigates through the available tools, and
-adapts its local actions to their results. It can perform reads, command tuning,
-tests, and local edits when the current task and runtime permissions allow them.
-It yields when the requested result is ready or further progress needs Astra's
-judgment. A newly observed failure can change the next diagnostic without
-changing the task's fixed decisions.
+**Luna** uses its ordinary configured tools, branches on observations, and yields
+when the requested assessment is complete or progress is blocked. It aims to
+follow the output example, rather than a compiled result schema. A genuine
+negative result is different from an inability to establish the answer.
 
-**The plugin** uses an existing subagent backend to run the delegated interaction.
-Pi hooks assemble context and support the yield boundary; the plugin retains
-history/JIT content and prepares the next Luna context. It does not replace Luna's
-judgment about which permitted action to try with a predetermined list of operations.
+**The plugin** reuses the existing Pi SDK/subagent execution, assembles context,
+returns the handoff once, saves history and JIT, and enforces a deadline. It does
+not take over Luna's local investigation or become a generalized controller.
 
-## Reuse the subagent design and Pi hooks
-
-Study Pi's shipped subagent example and existing subagent extensions before
-adding orchestration code. Prefer a compatible backend's documented foreground
-delegation API; do not reimplement its model loop, session transport, or ordinary
-tools. The proposed first slice is one Luna delegation at a time, with a fresh
-child context seeded by selected JIT content and the new capsule.
-
-Pi's `before_agent_start` and `context` hooks provide injection and model-input
-projection. Structured output provides the yield packet; settled completion
-provides the point to publish JIT state. Session persistence and lifecycle hooks
-support the bookkeeping. These are extension responsibilities, not a new command
-controller. See [Pi integration](PI-INTEGRATION.md) for concrete references,
-child-hook loading, and the difference between `agent_end` and `agent_settled`.
-
-## Two model-facing interfaces
-
-Astra uses `delegate_capsule({ capsule })`; Luna uses
-`yield({ reason, report, JITed_history })`. The existing backend and Pi tools
-remain behind these interfaces. Do not add another model-facing polling,
-acceptance, or memory-management tool to complete the first loop.
-
-The parent delegation stays pending while Luna works. After a valid yield and
-backend terminal completion, the plugin returns the handoff in the original
-tool result's model-visible content. That is the automatic injection into
-Astra's context; do not also send it as a new user/custom message. Only the
-worker's yield terminates its loop; the parent result lets Astra continue.
-See [the concrete contract](INTERFACES.md) for fields, failure outcomes, and
-project-local JIT replacement rules.
-
-## One complete cycle
+## One cycle, separate destinations
 
 ```text
-Astra: delegate_capsule({ capsule })
+Astra: delegate_capsule({ capsule, output_example, timeout_s? })
+                 |
+        parent watchdog starts
+                 v
+Luna: base instructions + selected JIT + capsule + output example
+                 |
+         ordinary tools <-> observations
                  |
                  v
-Luna working context
-  system instructions
-  relevant JITed project / tool knowledge
-  newly appended Astra capsule
+yield({ reason, result?, notes?, JITed_history })
                  |
-                 v
-Luna <-> normal Pi tools and observations
-  inspect -> act -> observe -> adapt
+       normal terminal completion
                  |
-                 v
-Luna: yield({ reason, report, JITed_history })
-  handoff as delegation result --> Astra reviews and decides
-  raw episode -------------------> history storage
-  useful JIT content ------------> next Luna context
-                                         |
-                           next Astra capsule is appended
+     +-----------+-------------------+--------------------+
+     |                               |                    |
+Astra tool result              retained files        project JIT
+ completed: result + paths     successful notes      useful lessons
+ failed: inline notes + path   raw transcript        + provenance
+                                                          |
+                                         next capsule + output example
+
+Watchdog expiry -> stop work, bounded cleanup, timeout with inline notes
 ```
 
-The proposal's Nix example illustrates this cycle: an investigation accumulates
-errors and failed trials; the return contains a report and distilled know-how;
-the next context keeps JITed cargo, project, and Nix knowledge rather than the
-whole investigation. It is an example of context management, not a mandate to
-build a specialized environment-recovery engine first.
+Do not send the full yield packet back to Astra. Explicitly project the parent
+result: compact answer on completion; mandatory inline cause/partial outcome/
+next action on blocked, timeout, or error. Supplemental successful notes and the
+transcript are reachable by absolute paths. JIT is not automatically returned.
 
-## A capsule is temporary direction
+The original pending tool result is the only automatic delivery route. No
+polling, receive tool, second injected message, or copied child termination flag
+is needed. The worker stops; Astra remains able to continue.
 
-A capsule carries the objective, decisions, constraints, useful task context,
-and the point at which Luna should yield. Keep it stable during the delegated
-episode; Astra can replace it at the next handoff. This is a conversational
-contract, not a requirement for cryptographic capsule identities, operator grant
-tables, or a new command language.
+## Context lifecycle, not process identity
 
-Prompt guidance is not hard security enforcement. The model still uses the
-runtime's real tool permissions. Neither a capsule nor a learned JIT entry can
-create permission the user or runtime did not grant. Tool output is evidence to
-interpret, not a new instruction source that overrides the capsule.
+Continue using fresh child contexts seeded with selected project JIT. Remove
+old task direction, output examples, and noisy observations from the next
+model input while retaining the archive. A new session that copies all old
+messages has not reclaimed context; neither has an "ignore previous" message.
 
-Verification remains concrete: preserve what tools actually returned, distinguish
-what ran from what passed, and let Astra check the report against the request.
-A concise return must not conceal a failing test, an incomplete check, or an
-unapproved change. A separate generalized verifier service is not a prerequisite
-for that discipline.
+Leave Astra's own conversation intact. Rebuilding context does not undo edits,
+replay tools, or establish OS isolation. Runtime tool permissions still apply;
+JIT and task instructions cannot grant additional authority.
 
-## Rebuilt context, not necessarily a new process
+The existing in-process adapter is a useful starting point, not a requirement
+to tolerate an unbounded wait. Keep supervision in the parent. If a reused
+terminable child runner is needed for effective cancellation, make that narrow
+change without reimplementing Pi's inference or tool machinery.
 
-The logical Luna role continues across handoffs while its working context changes.
-A fresh process is not the defining abstraction. Start by reusing a backend's
-fresh-context child sessions, carrying only selected JIT content across them.
-If persistent child sessions are later useful, Pi's `context` hook can project
-the active episode without deleting archived history. Do not build both variants
-for the first demonstration. The hook contracts have been inspected; the full
-backend integration and actual outgoing model input still need testing.
+## Thin but bounded
 
-The observable requirement is the same in either case: after yield, the old
-capsule and noisy episode messages do not enter the next Luna model request;
-selected JIT content and the next capsule do. A new session that copies the
-entire old transcript has not reclaimed anything. An unchanged session with an
-extra "ignore the above" message has not reclaimed anything either.
+Normal completion requires retained history and a valid fixed yield envelope.
+It does not require that an answer exactly match the example. Archive/JIT
+failures must be honest; previous retained knowledge must remain intact.
 
-Do not reset or compact Astra's own conversation as a side effect of this
-worker-context lifecycle. Rebuilding context also does not mean replaying tools
-or undoing their effects.
+Timeout is independent of worker cooperation. A fixed parent deadline covers
+setup, work, terminal completion, and normal return preparation. A separate
+cleanup window bounds abort, disposal, and partial retention. No late callback
+may inject another result or publish JIT after timeout. Do not start overlapping
+work if termination of the prior worker is unconfirmed.
 
-## Keep orchestration thin
-
-Use an existing subagent design for delegation and Pi for model interaction and
-ordinary tool execution. Add only the handoff, context hooks, yield handling, and
-history/JIT bookkeeping needed for the loop.
-Basic stop limits, cancellation, and honest partial returns belong in that glue;
-distributed ownership, automatic routing, recursive delegation, and a general
-memory platform do not need to precede it.
-
-The existing controller may remain as a separate scripted implementation. Its
-operation registry and durable state machine are not the definition of a capsule
-and should not dictate how the new context-first path represents an investigation.
-See the [implementation plan](IMPLEMENTATION.md) for the transition boundary.
+See [Pi integration](PI-INTEGRATION.md) for hook boundaries and
+[implementation status](IMPLEMENTATION.md) for the concrete current gaps. The
+legacy scripted service remains separate; its registry and ledger do not define
+this context-first path.

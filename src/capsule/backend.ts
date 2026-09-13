@@ -4,17 +4,21 @@ import { YieldParameters, validateYield, type YieldArgs } from "./contracts.js";
 
 export type TranscriptRecord = { type: string; [key: string]: unknown };
 export type BackendOutcome = {
-  kind: "settled" | "cancelled" | "timeout" | "error";
+  kind: "settled" | "interrupted" | "error";
   yield?: YieldArgs;
   records: TranscriptRecord[];
-  report?: string;
+  notes?: string;
   hooksRan: boolean;
+  /** False means owned worker cleanup could not be observed within the allowance. */
+  cleanupConfirmed?: boolean;
 };
 export interface CapsuleBackend {
-  run(input: { capsule: string; jit: Array<{ topic: string; content: string; raw_history: string }>; signal?: AbortSignal; timeoutMs: number }): Promise<BackendOutcome>;
+  run(input: { capsule: string; outputExample: string; jit: Array<{ topic: string; content: string; raw_history: string }>;
+    signal: AbortSignal; cleanupMs: number }): Promise<BackendOutcome>;
 }
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
+export const DEFAULT_LUNA_MODEL = "openai-codex/gpt-5.6-luna";
 export type PiBackendOptions = {
   cwd: string; stateDir: string; model: PiModel; tools: string[];
 };
@@ -23,7 +27,7 @@ export type WorkerHandoffState = { packet?: YieldArgs; hooksRan: boolean; duplic
 
 /** Worker-only extension factory, exported so its real hook/tool boundary can be tested. */
 export function createWorkerExtension(
-  input: { jit: Array<{ topic: string; content: string; raw_history: string }> },
+  input: { outputExample: string; jit: Array<{ topic: string; content: string; raw_history: string }> },
   state: WorkerHandoffState,
 ): InlineExtension {
   return (pi: ExtensionAPI) => {
@@ -32,7 +36,7 @@ export function createWorkerExtension(
       const lessons = input.jit.length
         ? input.jit.map(x => `### ${x.topic}\n${x.content}\nProvenance: ${x.raw_history}`).join("\n\n")
         : "(none selected)";
-      return { systemPrompt: `${event.systemPrompt}\n\n# Capsule worker handoff\nUse ordinary tools adaptively. Call yield as the sole final tool call. Do not continue after yield. The plugin, not you, supplies raw_history. Never put transcript contents or transcript/session paths in report or JITed_history, even if the capsule asks for a raw_history path.\n\n# Selected project JIT knowledge\n${lessons}` };
+      return { systemPrompt: `${event.systemPrompt}\n\n# Capsule worker handoff\nUse ordinary tools adaptively. Call yield as the sole final tool call. Do not continue after yield. The plugin, not you, supplies retained paths. Never put transcript contents or transcript/session paths in notes or JITed_history. A completed yield requires result; a blocked yield requires explanatory notes and has no result.\n\n# Output example (format guidance only)\nPreserve this guidance as written. Its values illustrate format and are not an answer to copy. It is not a schema and your result is not checked against it.\n${input.outputExample}\n\n# Selected project JIT knowledge\n${lessons}` };
     });
     pi.registerTool({
       name: "yield", label: "Yield to Astra",
@@ -55,15 +59,39 @@ export class PiSdkBackend implements CapsuleBackend {
     const records: TranscriptRecord[] = [];
     const handoff: WorkerHandoffState = { hooksRan: false, duplicate: false };
     const workerExtension = createWorkerExtension(input, handoff);
-    await mkdir(this.options.stateDir, { recursive: true, mode: 0o700 });
+    let resolveInterrupted!: () => void;
+    const interrupted = new Promise<void>(resolve => { resolveInterrupted = resolve; });
+    const onInterrupted = () => resolveInterrupted();
+    input.signal.addEventListener("abort", onInterrupted, { once: true });
+    const early = (outcome: BackendOutcome) => {
+      input.signal.removeEventListener("abort", onInterrupted);
+      return outcome;
+    };
+    const stage = async <T>(operation: Promise<T>): Promise<T | undefined> => {
+      if (input.signal.aborted) return undefined;
+      return Promise.race([operation, interrupted.then(() => undefined)]);
+    };
+    if (await stage(mkdir(this.options.stateDir, { recursive: true, mode: 0o700 })) === undefined && input.signal.aborted)
+      return early({ kind: "interrupted", records, hooksRan: false, cleanupConfirmed: true });
     const loader = new DefaultResourceLoader({ cwd: this.options.cwd, agentDir: getAgentDir(),
       extensionFactories: [workerExtension], noExtensions: true, noSkills: true, noPromptTemplates: true,
       noContextFiles: true });
-    await loader.reload();
+    if (await stage(loader.reload()) === undefined && input.signal.aborted)
+      return early({ kind: "interrupted", records, hooksRan: false, cleanupConfirmed: false,
+        notes: "Worker resource setup did not settle during termination." });
     const manager = SessionManager.create(this.options.cwd, this.options.stateDir);
-    const { session } = await createAgentSession({ cwd: this.options.cwd, model: this.options.model,
+    const creating = createAgentSession({ cwd: this.options.cwd, model: this.options.model,
       tools: [...this.options.tools, "yield"], excludeTools: ["delegate_capsule"],
       resourceLoader: loader, sessionManager: manager });
+    const created = await stage(creating);
+    if (!created) {
+      // If SDK startup eventually creates a session, terminate that owned child. Do
+      // not let a late setup completion publish a handoff.
+      void creating.then(({ session }) => { void session.abort().catch(() => {}); session.dispose(); }, () => {});
+      return early({ kind: "interrupted", records, hooksRan: false, cleanupConfirmed: false,
+        notes: "Worker session startup did not settle during termination." });
+    }
+    const { session } = created;
     const unsubscribe = session.subscribe(event => {
       // These are actual public Pi events. No environment or provider credentials are recorded.
       if (event.type === "message_end") records.push({ type: "message", message: event.message });
@@ -71,38 +99,59 @@ export class PiSdkBackend implements CapsuleBackend {
       else if (event.type === "tool_execution_end") records.push({ type: "tool_end", toolCallId: event.toolCallId, toolName: event.toolName, result: event.result, isError: event.isError });
       else if (event.type === "agent_settled") records.push({ type: "agent_settled" });
     });
-    const abort = () => void session.abort();
-    input.signal?.addEventListener("abort", abort, { once: true });
-    let timer: NodeJS.Timeout | undefined;
-    let timedOut = false;
+    let abortPromise: Promise<unknown> | undefined;
+    const abort = () => { abortPromise ??= Promise.resolve().then(() => session.abort()); };
+    input.signal.addEventListener("abort", abort, { once: true });
+    const bounded = async (operation: Promise<unknown>, milliseconds: number) => {
+      let timer: NodeJS.Timeout | undefined;
+      try { return await Promise.race([operation.then(() => true, () => true), new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), milliseconds); })]); }
+      finally { if (timer) clearTimeout(timer); }
+    };
     try {
-      const timeout = new Promise<void>(resolve => { timer = setTimeout(() => { timedOut = true; void session.abort().finally(resolve); }, input.timeoutMs); });
-      await Promise.race([session.prompt(input.capsule, { expandPromptTemplates: false }), timeout]);
-      await session.agent.waitForIdle();
+      const prompt = session.prompt(input.capsule, { expandPromptTemplates: false });
+      await Promise.race([prompt, interrupted]);
+      if (input.signal.aborted) {
+        abort();
+        const confirmed = await bounded(abortPromise!, input.cleanupMs);
+        return { kind: "interrupted", records, hooksRan: handoff.hooksRan, cleanupConfirmed: confirmed,
+          notes: confirmed ? "Worker termination completed." : "Worker abort did not settle during cleanup." };
+      }
+      await Promise.race([session.agent.waitForIdle(), interrupted]);
+      if (input.signal.aborted) {
+        abort();
+        const confirmed = await bounded(abortPromise!, input.cleanupMs);
+        return { kind: "interrupted", records, hooksRan: handoff.hooksRan, cleanupConfirmed: confirmed,
+          notes: confirmed ? "Worker termination completed." : "Worker idle settlement and abort were not confirmed during cleanup." };
+      }
       const assistants = session.messages.filter((m: any) => m.role === "assistant");
       const last: any = assistants.at(-1);
       const calls = (last?.content ?? []).filter((p: any) => p.type === "toolCall");
       const soleYield = calls.length === 1 && calls[0].name === "yield";
-      if (input.signal?.aborted) return { kind: "cancelled", records, hooksRan: handoff.hooksRan, report: "Delegation was cancelled before a valid handoff was published." };
-      if (timedOut) return { kind: "timeout", records, hooksRan: handoff.hooksRan, report: "Delegation timed out before a valid handoff was published." };
-      if (!handoff.hooksRan) return { kind: "error", records, hooksRan: false, report: "Worker settled without running the Capsule child hook; no handoff was published." };
-      if (handoff.duplicate || handoff.packet && !soleYield) return { kind: "error", records, hooksRan: handoff.hooksRan, report: "Worker yield was duplicated or mixed with other final tool calls; no handoff was published." };
-      if (!handoff.packet) return { kind: "error", records, hooksRan: handoff.hooksRan, report: "Worker settled without a valid yield tool call." };
+      if (!handoff.hooksRan) return { kind: "error", records, hooksRan: false, notes: "Worker settled without running the Capsule child hook; no handoff was published." };
+      if (handoff.duplicate || handoff.packet && !soleYield) return { kind: "error", records, hooksRan: handoff.hooksRan, notes: "Worker yield was duplicated or mixed with other final tool calls; no handoff was published." };
+      if (!handoff.packet) return { kind: "error", records, hooksRan: handoff.hooksRan, notes: "Worker settled without a valid yield tool call." };
       return { kind: "settled", yield: handoff.packet, records, hooksRan: handoff.hooksRan };
     } catch (error) {
-      return { kind: input.signal?.aborted ? "cancelled" : timedOut ? "timeout" : "error", records, hooksRan: handoff.hooksRan, report: `Worker did not complete: ${String(error)}` };
+      if (input.signal.aborted) {
+        abort();
+        const confirmed = await bounded(abortPromise!, input.cleanupMs);
+        return { kind: "interrupted", records, hooksRan: handoff.hooksRan, cleanupConfirmed: confirmed,
+          notes: `Worker was interrupted; termination ${confirmed ? "settled" : "was not confirmed"}: ${String(error)}` };
+      }
+      return { kind: "error", records, hooksRan: handoff.hooksRan, notes: `Worker did not complete: ${String(error)}` };
     } finally {
-      if (timer) clearTimeout(timer);
-      input.signal?.removeEventListener("abort", abort);
+      input.signal.removeEventListener("abort", abort);
+      input.signal.removeEventListener("abort", onInterrupted);
       unsubscribe(); session.dispose();
     }
   }
 }
 
 export function resolveConfiguredModel(registry: ModelRegistry, spec: string | undefined): PiModel {
-  if (!spec || !spec.includes("/")) throw Error("configuration_required: CAPSULE_LUNA_MODEL must be provider/model-id");
-  const slash = spec.indexOf("/"), provider = spec.slice(0, slash), id = spec.slice(slash + 1);
+  const selected = spec ?? DEFAULT_LUNA_MODEL;
+  if (!selected.includes("/")) throw Error("configuration_required: CAPSULE_LUNA_MODEL must be provider/model-id");
+  const slash = selected.indexOf("/"), provider = selected.slice(0, slash), id = selected.slice(slash + 1);
   const model = registry.find(provider, id);
-  if (!model) throw Error(`configuration_required: Luna model not found: ${spec}`);
+  if (!model) throw Error(`configuration_required: Luna model not found: ${selected}`);
   return model;
 }

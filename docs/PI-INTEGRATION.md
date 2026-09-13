@@ -1,186 +1,104 @@
-# Reuse subagents; implement the context lifecycle with Pi hooks
+# Existing Pi integration
 
-**Implemented against `@earendil-works/pi-coding-agent` 0.85.1.**
+**Implemented 14 September 2026:** the workspace has an in-process foreground
+`PiSdkBackend` using the pinned `@earendil-works/pi-coding-agent` 0.85.1 package.
+The updated [interface](INTERFACES.md) and parent watchdog are implemented.
+Automated tests use controlled backends; no new live-provider claim is made.
 
-The [original proposal](sources/ORIGINAL-PROPOSAL.txt) defines what survives a
-handoff: a report for Astra, useful JITed history for Luna, and a raw-history
-reference. Existing subagent designs supply the delegation machinery. Capsule
-should add that context lifecycle, not another execution controller.
+## Existing integration and reuse
 
-The model-facing names and payloads are fixed in
-[INTERFACES.md](INTERFACES.md): Astra gets `delegate_capsule({ capsule })` and
-Luna gets `yield({ reason, report, JITed_history })`. Backend dispatch/result
-interfaces are implementation details, not additional tools the models need.
+[backend.ts](../src/capsule/backend.ts) creates a fresh SDK session and a
+worker-local inline extension. [service.ts](../src/capsule/service.ts) retains
+actual events and project-local JIT. The
+[parent extension](../src/extension/index.ts) registers `delegate_capsule` and
+returns model-visible content. Keep this small structure where it fits.
 
-## Existing designs to reuse
+The original design references remain useful:
 
-| Reference | Useful part for Capsule |
+| Reference | Reuse rather than reinvent |
 | --- | --- |
-| [Pi's official subagent example][subagent] | A small reference for agent definitions, child dispatch, streamed progress, usage, and cancellation. Included in the installed package. |
-| [nicobailon/pi-subagents][subagents] | Reusable foreground child sessions, result/artifact handling, and a documented [structured delegation API][delegation] for other extensions. |
-| [mjakl/pi-subagent][mjakl] | A reference for fresh or named persistent child contexts, headless RPC, and settlement-aware completion. |
-| [Pi's structured-output example][structured] | A final structured tool result that can end the worker loop without a redundant follow-up model response. |
+| [Pi's shipped subagent example][subagent] | Child dispatch, ordinary tools, progress, and cancellation. |
+| [Pi's structured-output example][structured] | A final tool result that ends the worker loop. |
+| [nicobailon/pi-subagents][subagents] | Alternative public foreground delegation and artifact design. |
+| [mjakl/pi-subagent][mjakl] | Alternative child-session and completion design. |
 
-The implementation selects one backend: an in-process foreground adaptation of
-Pi 0.85.1's shipped SDK subagent example (`PiSdkBackend`). It uses
-`createAgentSession`, a fresh persisted `SessionManager`, and a worker-local
-inline extension. No second backend or subagent dependency was added.
+The latter packages are design references, not selected dependencies. Do not
+switch backend merely to follow an obsolete preferred-package recommendation.
+If the existing in-process adapter cannot provide effective bounded termination,
+adapt a small existing terminable child runner, preserving licenses and Pi's
+model/tool machinery. Do not build multiple backends or use an async-only route
+that makes Astra poll for this foreground return. Pin and test any actual change.
 
-The inspected `pi-subagents` API exposes `pi-subagents/delegation` and request,
-progress, response, and cancellation events for a configured foreground agent.
-Use fresh context and the explicit structured yield containing `reason`, `report`,
-and `JITed_history`; correlate the documented request identity and await its terminal
-response. Its separate event-bus RPC `spawn` is async-only, not this foreground
-interface. Use public surfaces rather than importing executor internals or
-recursively invoking `subagent` from a `tool_call` hook. [Source: delegation API][delegation]
+## Hook and boundary map
 
-Reuse the structured-result mechanism, but expose it under the one worker tool
-name `yield` and the agreed schema. Check that the chosen backend supports this
-adaptation; do not expose a second generic structured-output tool or silently
-change the contract to fit backend defaults. This compatibility is still to be
-tested, not a claim made by the API inspection.
-
-The selected Pi dependency is pinned to 0.85.1 in the package and lock files.
-The current `pi-subagents` docs also restrict foreground agents needing direct
-MCP or extension-provided models to the background route. Do not silently switch
-model or execution mode; choose a supported Luna configuration or the alternate
-reference design. [Source: agent/tool loading][agents]
-
-## Loading the implemented backend
-
-```sh
-export CAPSULE_LUNA_MODEL='provider/model-id'
-export CAPSULE_LUNA_TOOLS='read,bash,edit,write' # optional
-pi --extension /absolute/path/to/capsule/src/extension/index.ts
-```
-
-The model variable is mandatory and resolved through Pi's model registry; Luna
-never silently inherits Astra's model. Provider credentials remain in normal Pi
-configuration and are not copied to transcripts. The automated suite exercises
-the extension registration and backend/service boundary. A live two-episode
-smoke test also passed with `openai-codex/gpt-5.6-sol` as Astra and
-`openai-codex/gpt-5.6-luna` as Luna.
-
-## Hook map
-
-These surfaces were checked in the installed
-`@earendil-works/pi-coding-agent` **0.85.1** documentation, examples, and type
-declarations. The [public extension reference][extensions] describes the same
-contracts. This verifies availability, not the complete Capsule behavior.
-
-| Surface | Capsule responsibility |
+| Existing surface / boundary | Refined responsibility |
 | --- | --- |
-| `pi.registerTool()` | Register parent `delegate_capsule` and worker `yield` in their respective runtimes, not a new command API. |
-| Worker `before_agent_start` | Add selected JIT/reference context and yield guidance. The capsule can already be the child task; avoid injecting it twice. |
-| Worker `context` | Project messages before each model call without deleting raw history. Preserve current-episode observations; exclude reclaimed episodes when reusing a session. |
-| Structured result / `terminate: true` | Capture `reason`, report, and JIT at Luna's `yield`. Terminate only the worker; the parent delegation result must let Astra continue. |
-| `agent_settled` / backend terminal response | Publish completed episode state only after automatic continuations have ended. |
-| `pi.appendEntry()` and `session_start` | Save and restore small extension-local metadata. These entries are not model context. |
-| `session_shutdown` and cancellation signal | Release listeners, stop owned work through the backend, and retain honest partial state. |
-| `session_before_compact` | Optional customization for a persistent worker; not a prerequisite for the fresh-context first slice. |
+| Parent `delegate_capsule` | Accept capsule, output example, and optional timeout; start parent supervision before awaited setup. |
+| Worker `before_agent_start` | Add selected JIT, unchanged output-example guidance, and yield instructions without duplicating the capsule. |
+| Worker `yield` | Capture completed/blocked handoff. `result` is arbitrary JSON; only the fixed envelope is checked. |
+| Worker terminating result | End Luna only; do not forward its termination flag to Astra. |
+| Backend completion / settlement | Finalize normal yield once; not a reason to wait past the independent deadline. |
+| Parent tool `content` | Completed answer plus paths, or mandatory inline failure notes. No full yield/backend forwarding. |
+| Transcript and JIT storage | Retain searchable files and project lessons separately from Astra's input. |
+| Runtime abort / shutdown | Stop worker activity and clean up through bounded backend mechanisms. |
+| Fresh session / optional `context` hook | Retain current observations; exclude old episode material from future input. |
 
-Hooks belong to a specific runtime. Register the capsule worker extension in
-Luna's child, not only in Astra's parent. `pi-subagents` provides explicit child
-extension configuration; foreground children do not load ambient parent
-extensions. An SDK-based adaptation can use `DefaultResourceLoader`'s
-`extensionFactories` or `additionalExtensionPaths`. Check the resulting resource
-set rather than assuming parent settings carried over. Pi's event bus is not
-cross-process transport. [Sources: child loading][agents], [Pi SDK][sdk]
+The installed [extension documentation](../node_modules/@earendil-works/pi-coding-agent/docs/extensions.md),
+[SDK guide](../node_modules/@earendil-works/pi-coding-agent/docs/sdk.md), and
+[structured-output example](../node_modules/@earendil-works/pi-coding-agent/examples/extensions/structured-output.ts)
+are the local API references. Verify integration against the installed types
+when changing code, rather than assuming public latest documentation is pinned.
 
-## The small implementation
+Hooks must run inside Luna, not just Astra. The project settings default Astra
+to `openai-codex/gpt-6-astra`; the adapter defaults Luna to
+`openai-codex/gpt-5.6-luna`, with `CAPSULE_LUNA_MODEL` as an explicit override.
+Keep the configured model selection explicit,
+exclude the parent's delegation tool from the worker, and keep provider
+credentials in normal Pi configuration. Preserve existing runtime permissions.
+No task text or learned lesson is a security sandbox.
 
-```text
-Astra calls delegate_capsule({ capsule })
-    -> existing subagent backend starts Luna with fresh context
-    -> worker hook adds selected JIT and yield guidance
-    -> Pi runs Luna's ordinary adaptive tool loop
-    -> Luna calls yield({ reason, report, JITed_history })
-    -> backend returns its terminal result to the parent wrapper
-    -> wrapper retains history/JIT and returns one model-visible tool result
-    -> next delegation starts from selected JIT + the next capsule
-```
+## Normal yield versus timeout
 
-The wrapper needs only the current episode input, selected JIT entries, a saved
-history locator, and the pending return. Small local files and Pi session entries
-are enough. Existing Pi/subagent code owns model requests and ordinary tools;
-Capsule owns what context is supplied and what reusable lesson is retained.
+Pi's existing terminating-tool pattern has batch-wide conditions. Require a sole
+final yield and reject mixed work/yield before publishing. Normal completion
+must account for automatic continuation rather than treating any low-level end
+as final. Read the actual structured tool handoff, not guessed last-message JSON.
 
-Configure Luna explicitly. The official subagent example otherwise inherits the
-dispatching model when the agent has no model configured. Do not accidentally
-delegate back to Astra at Astra's cost. Keep normal runtime permissions and
-project trust; JIT text and capsule wording are not a sandbox. [Source: subagent example][subagent]
+The service supervises one fixed deadline from parent entry through setup,
+worker settlement, retention, and JIT publication. The backend races setup,
+prompt, and idleness against cancellation and bounds SDK abort by the cleanup
+allowance. Partial retention and cleanup are separately bounded.
 
-If adapting that example, change its `--no-session` behavior: retain a Pi session
-or save the actual event history before disposing the child. Reuse a backend's
-existing transcript artifacts where available; never manufacture a history path.
-Return bounded report text to Astra and keep bulky history out of its model input.
+Expiry must choose timeout immediately and bound abort, termination, disposal,
+and partial retention to the cleanup allowance. Never depend on a cooperative
+yield or terminal event after expiry. Protect result/JIT publication from late
+callbacks. A hung operation inside the parent's event loop cannot be forcibly
+stopped by a timer on that same loop; choose a suitable execution boundary if
+needed, without calling it an OS sandbox or promising hard scheduling bounds.
 
-Automatic injection is the normal `delegate_capsule` result: serialize the
-[result envelope](INTERFACES.md) into the returned `content`, with `details` for
-rendering/state as useful. Do not put the only copy in `details`, and do not
-duplicate the result with `sendUserMessage()` or another custom message.
-`pi.appendEntry()` alone is not model-visible delivery. On user cancellation,
-preserve the partial outcome without forcing Astra to run again.
+## Input and return economy
 
-## Two lifecycle distinctions that matter
+Use one output example string in worker context; do not dynamically build a
+result schema or validate the answer against the example. Reuse basic fixed tool
+schemas only. The parent's result must be constructed from approved fields, not
+by spreading the worker response.
 
-**Yield is structured completion, not any end event.** Pi's `agent_end` can be
-followed by retry, compaction, or queued follow-up work. A hook-based adaptation
-checks `agent_settled`, current idleness, pending work, and a valid saved yield
-packet. A reused backend's terminal response is the parent wrapper's completion
-boundary. A cancelled or failed run must not publish an unverified lesson as a
-successful result. [Source: extension lifecycle][extensions]
-
-Pi's terminating-tool pattern is suitable for the yield packet. Termination
-only takes effect when every finalized result in the tool batch is terminating;
-require Luna to yield as its sole final tool call and reject a mixed yield/work
-batch. Do not rely on the termination hint to enforce this contract. Read the structured tool result,
-not just the last assistant text. Do not abort from a normal yield merely to
-simulate success. Do not forward `terminate: true` from Luna's result into
-Astra's wrapper result. [Sources: tool semantics][extensions], [structured output][structured]
-
-**Reclamation is model-input selection, not ordinary compaction.** The first
-version starts the next child with selected JIT and no old transcript. This can
-reuse in-process child sessions; it does not require a new process hierarchy.
-If persistent sessions are added, use episode boundaries to project an intact
-current conversation through `context`; do not filter messages by matching words
-or drop tool results independently of their calls.
-
-Default Pi compaction retains a recent tail. Supplying a JIT summary alone does
-not prove the old capsule is gone. A persistent variant must account for
-compaction summaries and retained messages and test the actual outgoing input.
-Keep active-task instructions during mid-episode compaction; discard them only
-at the completed yield boundary. Do not call command-only session-switch APIs
-from tool/event handlers or switch Astra's session. [Sources: compaction][compaction], [extension contexts][extensions]
-
-## What to prove first
-
-Run two small delegations. The second model input must include a useful verified
-lesson and a new capsule, omit a distinctive old-capsule/log marker, and still
-allow retrieval of the archived first episode. Verify the child hook actually
-ran, the effective model is Luna, current tool observations were preserved, and
-Astra received one terminal report. Include cancellation and malformed-yield
-cases. This is the [implementation slice](IMPLEMENTATION.md), not a new ledger,
-recipe registry, automatic router, or general memory service.
+On completion save supplementary notes to a file and return its path. On every
+blocked/timeout/error return put the explanation inline, even if file storage
+fails. Keep `raw_history` path-only, and keep JIT updates internal. `content` is
+the normal delivery route; do not also send another user/custom message. User
+interruption still cleans up but never forces a new Astra turn or adds a public
+cancellation status.
 
 ## Source scope
 
-The user proposal supplies the product lifecycle. The links below supply
-reference implementations and API facts; choosing which parts to reuse is the
-design recommendation above. Upstream pages were read on 13 September 2026.
-Locally inspected files, relative to
-`node_modules/@earendil-works/pi-coding-agent/`, were `docs/extensions.md`,
-`docs/sdk.md`, `examples/extensions/subagent/{README.md,index.ts}`,
-`examples/extensions/structured-output.ts`, and
-`dist/core/{extensions/types.d.ts,resource-loader.d.ts}`. No provider request,
-dependency installation, or runtime integration test was performed.
+The original proposal defines the product lifecycle; current code establishes
+what exists; the recent user refinements define what changes next. Upstream
+links below are retained references, not freshly verified compatibility claims.
+Prior docs reported a live two-episode run under the old contract. This pass did
+not rerun it, and it does not prove the revised output or timeout behavior.
 
 [subagent]: https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent
-[subagents]: https://github.com/nicobailon/pi-subagents
-[delegation]: https://github.com/nicobailon/pi-subagents/blob/main/docs/extension-api.md
-[agents]: https://github.com/nicobailon/pi-subagents/blob/main/docs/agents.md
-[mjakl]: https://github.com/mjakl/pi-subagent
 [structured]: https://github.com/earendil-works/pi/blob/main/packages/coding-agent/examples/extensions/structured-output.ts
-[extensions]: https://pi.dev/docs/latest/extensions
-[sdk]: https://pi.dev/docs/latest/sdk
-[compaction]: https://pi.dev/docs/latest/compaction
+[subagents]: https://github.com/nicobailon/pi-subagents
+[mjakl]: https://github.com/mjakl/pi-subagent

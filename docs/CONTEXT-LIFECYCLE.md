@@ -1,218 +1,124 @@
-# Capsule, yield, reclaim, JIT
+# Capsule, example, yield, reclaim, JIT
 
-The [original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the context-stack
-example and the JIT Workflow Optimization method. The prose capsule template is
-illustrative; the [v1 interfaces](INTERFACES.md) now fix the tool payloads used by
-this implemented lifecycle.
+This is the implemented refined lifecycle. The
+[original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the JIT method and
+context-stack example; [INTERFACES.md](INTERFACES.md) supplies the latest payloads.
 
-## 1. Assemble the reusable context
+## 1. Select reusable knowledge
 
-Before a delegation, Luna needs system instructions and only the relevant JITed
-knowledge. The proposal's starting stack can be represented as:
+Start Luna with base instructions and relevant project/tool lessons, including
+provenance paths. Do not load every saved lesson or raw log. Keep the common
+executable path, minimum guard, and decisive verification visible; retrieve
+uncommon branches and history only when actual evidence calls for them.
 
-```text
-system instructions
-JITed history of cargo
-JITed history of the project
-```
+## 2. Append current direction and answer guidance
 
-Keep the JIT method available, but do not load every saved lesson or raw log.
-Select knowledge by the current project and task. Load deeper material when an
-actual ambiguity, failure, or uncommon branch calls for it.
+Astra calls `delegate_capsule({ capsule, output_example, timeout_s? })`.
+Preserve both text fields. The capsule carries the current goal, decisions,
+constraints, local discretion, and yield gate. The example illustrates only the
+answer format; it need not parse as JSON and does not dictate the answer's value.
 
-## 2. Astra appends a capsule
-
-The capsule adds temporary direction to that working context. It should be
-self-contained enough that Luna does not need Astra's entire conversation.
-Astra calls `delegate_capsule({ capsule })`, with the capsule as a single
-plain-text or Markdown string. One possible template for that string is:
+The child context is:
 
 ```text
-Goal
-  The result this delegation should establish.
-
-Decisions and context
-  What Astra has already decided, why it matters, and the relevant facts.
-
-Local work
-  What Luna may investigate or adjust without another Astra decision.
-
-Constraints
-  What must remain unchanged and what requires renewed approval.
-
-Yield when
-  The result is ready, the work is blocked, or a decision exceeds this capsule.
-
-Return
-  Findings, actions and actual results, verification, unresolved issues,
-  and any useful JITed know-how.
+base instructions and ordinary configured tools
+selected JIT lessons with transcript-path provenance
+current Astra capsule
+current output example
+current episode's tool calls and observations
 ```
 
-This is not a command batch. Luna can select a dependent second action after
-seeing the first result. Local editing is neither universally prohibited nor
-universally authorized: the capsule and existing runtime permissions determine
-the intended scope. New consequential decisions return to Astra.
+Supply capsule and example once, not once per tool result. Do not append Astra's
+entire conversation or make old answer examples permanent JIT. A parent-owned
+watchdog is already running before awaited setup begins.
 
-## 3. Luna works inside the episode
+## 3. Investigate adaptively
 
-Tool calls and observations accumulate after the capsule:
+Luna chooses the next useful permitted action from actual results. Batch
+independent work; serialize real dependencies. Current tool observations remain
+in this episode's model input. No Astra inference is needed merely to wait on a
+command, retry an allowed invocation, or read dependent output.
+
+The output example does not weaken verification. If a requested assessment
+finishes with a negative result, return that result. If it cannot be established,
+yield blocked with an explanation rather than guessing or hiding the limitation
+in a successful attachment.
+
+## 4. Yield; route each part to the right place
+
+Luna's sole final tool call is `yield`. It carries `reason`, arbitrary JSON
+`result` on completion, optional supplementary `notes`, and `JITed_history`.
+A blocked yield instead requires explanatory notes and no invented result.
+
+| Part | Destination |
+| --- | --- |
+| Completed `result` | Astra's original delegation tool result, unchanged. |
+| Completed supplementary `notes` | Retained UTF-8 file; only `notes_path` enters Astra's context. |
+| Blocked explanation | Mandatory inline `notes` in Astra's return. |
+| Runtime timeout/error explanation | Mandatory inline plugin-generated `notes`, even when storage fails. |
+| Raw episode | Retained transcript; only its actual absolute path is returned. |
+| JIT updates | Project-local knowledge for later Luna input, not the parent return. |
+
+The plugin checks the fixed handoff envelope, not the result's shape against the
+example. Do not add an output-schema validator or a format-repair loop. Current
+Pi/backend tools still handle invalid fixed arguments within the original limit.
+
+Save actual history, wait for normal terminal completion, and explicitly build
+one parent result. Do not spread the worker packet or duplicate it with a new
+message. The worker's termination flag must not stop Astra's continuation.
+
+## 5. Retain useful JIT and reclaim the episode
+
+JIT entries are `{topic, content}`. Each update replaces that project's retained
+text for its topic; omitted topics stay unchanged and `[]` makes no changes.
+The plugin attaches a genuine saved transcript path. A useful verified lesson
+may come from a valid blocked handoff without turning the task into a success.
+Never publish JIT from a timeout, interrupted run, runtime error, malformed
+handoff, or late yield. Preserve earlier knowledge on storage failure.
+
+A lesson is the minimal reusable procedure, not the whole transcript. Keep
+applicability, safety guard, and verification. Do not turn expired task permission
+into a standing grant, copy stale absolute environment paths as universal advice,
+or rewrite global skills without authorization. Astra can inspect knowledge
+on demand or ask Luna to correct a topic in a later capsule.
+
+The next delegation receives:
 
 ```text
-system instructions
-relevant JITed knowledge
-Astra's current capsule
-tool call and result
-error log
-failed trial
-next action chosen from the observed result
-...
+base instructions
+selected retained JIT, including the useful new lesson
+new capsule
+new output example
+new episode messages only
 ```
 
-Follow the proposal's JIT discipline during the work: take the smallest useful
-safe action, batch independent calls, serialize real dependencies, and branch
-from actual output. Waiting for a process or repeating a fixed mechanical check
-does not require an Astra inference. Stop at a meaningful result or decision
-boundary, not merely after an arbitrary single tool call.
+The old capsule, old output example, successful notes, repeated errors, and raw
+transcript do not enter by default. Reclamation removes them from model input,
+not from the saved archive. It never resets Astra's conversation, undoes work,
+or leaves orphaned tool calls/results in a reconstructed message list.
 
-## 4. Yield a report and JITed history
+## 6. Timeout is not a cooperative yield
 
-The report is for Astra's current decision. JITed history is for future Luna
-execution. Keep the destinations distinct. Luna calls the single worker tool
-`yield({ reason, report, JITed_history })` as its sole final tool call.
+Use a fixed deadline through normal return readiness, default 300 seconds plus
+5 seconds for cleanup. A per-call `timeout_s` overrides the working deadline.
+Setup, retries, progress, yield receipt, and settlement must not escape/reset it.
 
-The report states what was attempted, what actually ran, the result of relevant
-checks, what changed, and what remains unresolved. Refer to raw evidence when
-detail is needed. Tool launch success is not the same as a passing source check;
-an explanation of a failure is not a repair of that failure.
+If Luna never yields, abort the backend and bound cleanup/retention without
+waiting indefinitely for worker idleness. Return `timeout` with inline notes,
+not a guessed result. Include available partial-history paths only when real.
+Reject late result/JIT publication. If termination is unconfirmed, explain it
+and stop subsequent same-workspace delegation from overlapping that work.
+Internal user interruption still performs cleanup without forcing an Astra turn.
 
-JITed history retains the smallest useful verified lesson, not a chronological
-retelling of the episode. The v1 payload uses topic updates, each with one
-complete replacement lesson. This is an illustrative payload, not an observed
-workspace result:
+See [interfaces](INTERFACES.md) for field rules and
+[implementation prompt](IMPLEMENTATION-PROMPT.md) for timeout tests.
 
-```json
-{
-  "reason": "completed",
-  "report": "What ran, the observed result, verification, and the next decision needed.",
-  "JITed_history": [
-    {
-      "topic": "project-tests",
-      "content": "The verified procedure, conditions where it applies, minimum guard, and decisive verification."
-    }
-  ]
-}
-```
+## Observable checks
 
-Only the report/JITed-history distinction comes from the proposal's return
-example; the reason and topic-array shape are the subsequent v1 interface design.
-`completed` means the requested gate was reached, not that every check passed.
-Use `needs_decision` for a question requiring Astra's judgment and `blocked` when
-the gate cannot be reached with the available information or permitted actions.
-
-Each topic update replaces that project's retained text for the topic; omitted
-topics are unchanged. `JITed_history: []` means no update, not erase all history.
-The plugin supplies real raw-history provenance after saving the episode; Luna
-does not include a history path in `yield`. See [INTERFACES.md](INTERFACES.md) for
-validation, size defaults, and the plugin-generated return envelope.
-
-The plugin places the handoff in Astra's pending `delegate_capsule` tool result.
-This automatically delivers the reply into Astra's context once; there is no
-polling step or duplicate user/custom message. Bulk history stays out of the
-return. `raw_history` is only an absolute path to an existing readable JSONL
-transcript file. Astra can target it with
-`rg -n -F -C 2 -- "failure text" "/absolute/episode.jsonl"`; Capsule does not run
-that search or inject transcript content automatically.
-
-Astra reviews the result and can correct the proposed lesson. Unverified ideas
-remain explicitly uncertain or in the raw history; they are not promoted into
-the common executable path as established procedures. On cancellation, failure,
-or malformed return, preserve actual observations and identify missing parts
-instead of fabricating a successful report.
-
-## 5. Reclaim at the yield boundary
-
-Save the raw episode before dropping it from active context, return the report
-to Astra, and rebuild Luna's next model input from selected reusable knowledge.
-For the proposal's example, the resulting stack is:
-
-```text
-system instructions
-JITed history of cargo
-JITed history of the project
-JITed history of nix develop, with a raw_history reference
-```
-
-The old capsule, repeated errors, failed trials, and full tool transcript are
-not automatically carried forward. Reclamation means removing them from future
-model input, not deleting the user's files, erasing the raw archive, or merely
-appending an instruction to ignore old messages. Reconstruct complete valid model
-messages rather than leaving orphaned tool calls or results behind.
-
-Unresolved task state must not vanish: Astra receives it in the report and
-includes what remains relevant in the next capsule. That is different from
-turning every outstanding task instruction into permanent JIT knowledge.
-
-On the next delegation, append the new capsule to this rebuilt stack. Retrieve
-the relevant part of the raw history only when needed; do not reload the entire
-archive as a hidden default context source.
-
-## What belongs in JIT content
-
-Keep the common path in the first screen: the canonical action, minimum safety
-guard, and decisive verification. Keep consecutively used commands and checks
-together. Put uncommon fallbacks, long inventories, and terminology in separate
-retrievable material rather than growing the hot context indefinitely. Those
-are the proposal's hot-index, locality, and 80/20 principles applied to history.
-
-A Nix lesson should preserve the procedure and conditions that were actually
-verified, not promise that a saved absolute store path works forever. Failed
-attempts can stay in cold history unless their failure signature is itself a
-useful trigger. JIT must not guess missing context or weaken a check to shorten
-the procedure.
-
-Task authority expires with the task: a useful invocation may survive, but an
-episode-specific permission to modify a file does not become a standing grant.
-Likewise, saving project-local JIT content is not permission to rewrite a global
-skill. A recurring verified lesson can motivate a small skill improvement when
-that edit is authorized.
-
-## Observable check
-
-### Pi realization
-
-Use the existing subagent task input for Astra's capsule. A worker-local
-`before_agent_start` hook can add selected JIT/reference material and yield
-instructions; do not inject a second copy of the capsule if it is already the
-task. The `context` hook operates on outgoing messages before each model call,
-not on the raw session file. Preserve the current episode's dependent tool calls
-and observations while it is running.
-
-At yield, reuse the backend's structured-result facility, or Pi's terminating
-structured-output tool pattern, exposed to Luna only as `yield` with the
-[specified schema](INTERFACES.md). A tool result or `agent_end` event alone is not
-proof that Pi has finished all automatic continuations. Save and publish the
-next JIT state only after the backend's terminal completion; a hook-based runner
-uses `agent_settled` with idle/pending-work checks. Then start the next child with
-selected JIT and a new capsule. This fresh-context path avoids hand-editing an
-old message list in the first version.
-
-Reject mixed yield/work batches rather than treating them as a completed
-handoff. Set `terminate: true` only on Luna's yield result, never on Astra's
-delegation result. Cancellation, timeout, malformed output, or archive failure
-must remain visible and must not publish a successful yield or an untraceable
-JIT update.
-
-`pi.appendEntry()` persists extension metadata without adding it to model input;
-injection remains a separate step. Default compaction can retain recent episode
-messages, so it is not automatically equivalent to capsule reclamation. See
-[Pi integration](PI-INTEGRATION.md) for source references and the optional
-persistent-session variant.
-
-### Acceptance
-
-Inspect the actual next Luna request, not just a summary displayed in the UI.
-It should contain the selected lesson and new capsule, omit the previous
-capsule and noisy transcript, and retain a working route to the archived detail.
-Then demonstrate that Luna reuses the lesson without skipping its guard or
-verification. The [implementation slice](IMPLEMENTATION.md) makes this the
-central acceptance check.
+Inspect actual outgoing model input and parent tool content, not just a displayed
+summary. Episode two must have the new example and useful lesson, but no old
+capsule/log markers. Successful notes, raw-only output, and JIT-only text must
+remain absent from Astra's automatic return, while their files stay retrievable.
+Every non-completed return must explain itself inline. A never-yielding worker
+must release the parent within the working and cleanup budgets under the supported
+runtime conditions, without silently leaving overlapping work running.

@@ -1,48 +1,36 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DelegateCapsuleResult",
-  "description": "Plugin-generated return to Astra's original delegate_capsule call. This is an output envelope, not another tool's parameters.",
+  "description": "Fixed parent envelope. Completed results have file-backed supplementary notes; every failed branch has mandatory expanded inline notes. No result type checker.",
   "oneOf": [
     {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["status", "reply", "raw_history"],
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "result", "raw_history"],
       "properties": {
-        "status": {
-          "type": "string",
-          "const": "yielded"
-        },
-        "reply": {
-          "$ref": "yield.schema.json"
+        "status": {"const": "completed"},
+        "result": {"description": "Luna's JSON answer passed through unchanged, without validation against output_example."},
+        "notes_path": {
+          "type": "string", "minLength": 2, "pattern": "^/",
+          "description": "Absolute retained supplementary-notes file path. Optional; omit when no notes exist. Never inline notes or invented paths. Runtime checks readability."
         },
         "raw_history": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S",
-          "description": "Absolute filesystem path to the actual retained UTF-8 JSONL episode transcript. Never transcript text, encoded bytes, a URI, session ID, or placeholder. Runtime code verifies that the file exists and is readable."
+          "type": "string", "minLength": 2, "pattern": "^/",
+          "description": "Absolute readable transcript path supplied by the plugin. Never transcript text, encoded bytes, URI, or session ID. Runtime checks existence after retention."
         }
       }
     },
     {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["status", "report", "raw_history"],
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "notes"],
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["cancelled", "timeout", "error"]
-        },
-        "report": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S",
-          "description": "Plugin-authored account of known observations, missing parts, and the runtime failure."
+        "status": {"type": "string", "enum": ["blocked", "timeout", "error"]},
+        "notes": {
+          "type": "string", "minLength": 1, "pattern": "\\S",
+          "description": "Mandatory inline explanation: cause, established partial outcome, and needed action. Never substitute notes_path. Required even if storage fails."
         },
         "raw_history": {
-          "type": ["string", "null"],
-          "minLength": 1,
-          "pattern": "\\S",
-          "description": "Absolute filesystem path to the readable retained partial UTF-8 JSONL transcript when available; null otherwise. Never transcript contents or an invented path. Runtime code verifies existence and readability."
+          "type": "string", "minLength": 2, "pattern": "^/",
+          "description": "Absolute retained readable partial-transcript path when available; otherwise omit. Never contents, placeholders, or null."
         }
       }
     }

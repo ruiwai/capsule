@@ -1,0 +1,7 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6-astra",
+  "extensions": [
+    "../src/extension/index.ts"
+  ]
+}

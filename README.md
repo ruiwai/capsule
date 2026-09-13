@@ -2,97 +2,93 @@
 
 **Astra makes the key decisions. Luna handles the tool loop. Useful know-how survives.**
 
-Pi Capsule is a context-engineering plugin design for supervised delegation in
-Pi. Astra supplies a self-contained capsule of current decisions and instructions.
-Luna works through dependent reads, commands, and permitted local adjustments,
-then yields to Astra with a report and JITed history. The plugin reclaims the
-temporary capsule and execution context, retaining useful knowledge and a
-reference to the raw history for the next delegation.
+Pi Capsule is a context-engineering extension for supervised delegation in Pi.
+Astra supplies temporary direction and an example of the answer it needs. Luna
+investigates adaptively, yields, and leaves useful project-local JIT knowledge
+for the next delegation. Detailed history stays retrievable, not compulsory
+context on every turn. The [original proposal](docs/sources/ORIGINAL-PROPOSAL.txt)
+provides the context-injection, yield, and JIT lifecycle.
 
-**Status: the smallest context-first loop is implemented.** The parent extension
-registers `delegate_capsule`, starts a fresh foreground Pi SDK worker with its
-own worker-local `yield` tool, retains JSONL transcripts, and publishes
-project-local JIT lessons. The older scripted runner remains separate.
+**Status, 14 September 2026:** `src/capsule/` implements the refined
+example-guided contract, asymmetric parent return, retained artifacts, internal
+JIT, and parent-owned watchdog described below. See
+[implementation status](docs/IMPLEMENTATION.md).
 
-**Implementation direction: reuse an existing Pi subagent design and Pi's
-extension hooks.** Keep child-session execution in the subagent backend; add
-capsule injection, structured yield, and JIT/context replacement around it.
-The [Pi integration notes](docs/PI-INTEGRATION.md) identify concrete upstream
-references and the hooks checked against the installed Pi package.
+## Two tools, a small answer
 
-The [v1 interface contract](docs/INTERFACES.md) adds just two model-facing tools:
-`delegate_capsule({ capsule })` for Astra and
-`yield({ reason, report, JITed_history })` for Luna. Luna's handoff automatically
-returns in the original `delegate_capsule` tool result, so Astra receives it in
-context without polling or a second injected message. These are the implemented
-model-facing interfaces.
+Astra call:
 
-## The loop
-
-```text
-Astra: decide and append a capsule to Luna's working context
-    -> Luna: investigate, act, observe, adapt
-    -> Luna yields: report + JITed_history
-    -> Astra: review, correct, decide the next task
-
-At the yield boundary, the plugin rebuilds Luna's context:
-    system instructions + relevant JIT knowledge with provenance paths
-    + the next Astra capsule when delegated
+```json
+{
+  "capsule": "Run npm test and report whether it completed and passed. Do not change source or tests. Yield blocked if the result cannot be established.",
+  "output_example": "{\"ok\":true}",
+  "timeout_s": 120
+}
 ```
 
-The capsule guides Luna through context; it is not a pre-enumerated command
-batch or a requirement for a complex execution controller. JIT is not a generic
-summary: keep the common executable path, minimum safety guard, and decisive
-verification; retrieve detailed history only when needed. Reclamation means the
-old capsule and noisy transcript are absent from subsequent model input, not
-merely followed by an instruction to ignore them.
+Luna calls `yield({ reason, result?, notes?, JITed_history })`. The output example
+is text guidance, not a schema or literal answer. Trust Luna's answer; do not
+compile a type checker or add a formatting-repair loop.
 
-The design follows the [original proposal](docs/sources/ORIGINAL-PROPOSAL.txt).
-Its purpose is to reduce routine Astra participation without weakening result
-quality or verification. Savings remain something to measure, not a guarantee.
+| Outcome | What Astra receives automatically |
+| --- | --- |
+| `completed` | The compact result, optional supplementary-notes file path, and retained transcript path. |
+| `blocked`, `timeout`, `error` | Mandatory inline explanatory `notes`, plus a transcript path when available. |
 
-## Documentation
+A completed `{"ok":false}` is a negative answer, not a failed delegation.
+Needing Astra's judgment is `blocked`. Runtime interruption remains internal.
+The parent result is delivered once through the original tool call, without
+polling or another injected message. Only Luna's yield terminates the worker.
 
-Start with the [documentation index](docs/README.md), then the
-[architecture](docs/ARCHITECTURE.md) and
-[context lifecycle and examples](docs/CONTEXT-LIFECYCLE.md). For implementation,
-start with the [two-tool contract and schemas](docs/INTERFACES.md), then
-[existing subagent designs and Pi hooks](docs/PI-INTEGRATION.md).
+`raw_history` is an absolute readable transcript **path**, never its contents.
+Astra reads successful notes or searches the transcript only when needed.
+JIT updates remain in project-local storage for later Luna context; they are
+not automatically forwarded to Astra.
 
-## Setup
+## Bounded work and reclaimed context
 
-Use Node 22.19 or newer. Configure Luna explicitly and load this extension:
+Use a parent-owned deadline: default 300 seconds, optional per-call override,
+and a separate 5-second cleanup allowance. It must cover startup through normal
+result preparation, not just the model prompt. Expiry stops work without waiting
+forever for Luna, abort, settlement, or storage. Unconfirmed cleanup keeps the
+workspace delegation lock held to prevent overlap.
+
+After a valid, timely yield, retain actual history and useful JIT, then build the
+next worker context from selected lessons and the new capsule/output example.
+Do not carry forward the old capsule, noisy transcript, or old answer example.
+Do not reset Astra's conversation. Prompt guidance is not an OS sandbox.
+
+## Development and documentation
+
+Start with [interfaces](docs/INTERFACES.md), then the
+[refinement prompt](docs/IMPLEMENTATION-PROMPT.md). The
+[documentation index](docs/README.md) links architecture, lifecycle, and Pi hooks.
+Reuse the existing Pi SDK/subagent design rather than adding another controller.
+
+Project settings load the extension and default Astra to
+`openai-codex/gpt-6-astra`. Luna defaults independently to
+`openai-codex/gpt-5.6-luna`; `CAPSULE_LUNA_MODEL` overrides that worker default.
+Both use normal Pi authentication. In the repository's Node/npm development
+environment:
 
 ```sh
-npm ci
 npm run build
-export CAPSULE_LUNA_MODEL='anthropic/claude-sonnet-4-5'
 export CAPSULE_LUNA_TOOLS='read,bash,edit,write'
-pi --extension "$(pwd)/src/extension/index.ts"
+pi
 ```
 
-Pi's normal provider authentication must be configured for the selected model.
-By default state is private project-local data under `.pi/capsule/`. Set
-`CAPSULE_STATE_DIR` to an absolute Astra-readable directory inside the project
-when needed. The checks are:
-
-```sh
-npm run build
-npm test
-npm run test:acceptance
-```
-
-`npm test` includes the deterministic backend-boundary Capsule lifecycle suite
-and the existing scripted tests.
-Runtime requirements and the source map are in
-[implementation status](docs/IMPLEMENTATION.md). The
-[archived scripted-path guide](archive/SCRIPTED-PATH.md) remains the guide to
-running that older path. Existing permissions and checks have not been relaxed.
-Neither prompt instructions nor trusted-local execution are an OS sandbox.
+Trust the project when Pi asks so `.pi/settings.json` can take effect. To select
+a different Luna, export `CAPSULE_LUNA_MODEL='provider/model-id'`. When set,
+`CAPSULE_STATE_DIR` must be absolute, Astra-readable, and inside the project;
+preserve this existing containment restriction. Run `npm test` for repository
+tests; `npm run test:acceptance` still targets the legacy scripted suites and is
+not proof of live provider behavior.
 
 ## History
 
-The former `docs/` was moved to [archive/](archive/README.md). Its controller-heavy
-specifications and historical evidence are retained, not current requirements.
-The [previous project README](archive/PREVIOUS-PROJECT-README.md) is also preserved.
-Source code, tests, and audit records were not rewritten as part of this reset.
+Former docs remain in [archive/](archive/README.md), including the
+[previous README](archive/PREVIOUS-PROJECT-README.md) and
+[scripted-path guide](archive/SCRIPTED-PATH.md). They are historical, not the new
+interface requirements. Source and automated tests implement the current
+interface; archives, original proposal, audit evidence, and the separate scripted
+path remain preserved.

@@ -1,69 +1,62 @@
 # Implementation status
 
-The smallest context-first Capsule loop is implemented in `src/capsule/` and
-registered by `src/extension/index.ts`. The legacy scripted service remains
-available through its existing adapter and was not weakened.
+**Implemented and exercised: 14 September 2026, with pre-existing working-tree
+changes preserved.** Capsule remains the existing context-first Pi SDK adapter;
+the legacy scripted controller is separate.
 
-## Runtime map
+## Current behavior
 
-| File | Responsibility |
+| Area | Implemented behavior |
 | --- | --- |
-| `src/capsule/contracts.ts` | Exact TypeBox contracts and duplicate-topic validation. |
-| `src/capsule/backend.ts` | Foreground fresh Pi 0.85.1 child, explicit model/tools, child hooks, worker-only `yield`, settlement/mixed-call checks, and actual event capture. |
-| `src/capsule/service.ts` | One active delegation, JSONL retention, atomic project JIT replacement, compact parent result. |
-| `src/extension/index.ts` | Astra-only `delegate_capsule` and normal model-visible delivery. |
+| Fixed contracts | `delegate_capsule({capsule, output_example, timeout_s?})`; completed/blocked `yield` with arbitrary JSON result and bounded JIT fields. Old report/reply/yielded, needs_decision, and public cancelled envelopes are rejected. |
+| Parent projection | Completion passes `result` unchanged and returns retained transcript plus optional notes paths. Blocked/runtime failures use mandatory inline notes and never fabricate a result. |
+| Context | Luna receives selected project JIT, the current capsule, and unchanged example guidance. The parent receives no JIT, successful note text, transcript content, or worker termination flag. |
+| Storage | Searchable UTF-8 transcripts and supplementary notes are retained under the project-scoped state root. Topic updates use atomic project-local replacement with transcript provenance. |
+| Watchdog | One per-call deadline starts before JIT loading/backend setup and remains active through normal persistence. Precedence is `timeout_s` > `CAPSULE_LUNA_TIMEOUT_MS` > 300,000 ms; timer values are range checked. Cleanup has a separate 5,000 ms allowance. |
+| Termination | Expiry selects timeout once, aborts the owned Pi session, bounds abort/idleness/retention waits, fences late handoff/JIT processing, and retains workspace ownership when cleanup is unconfirmed. User interruption follows the internal abort path rather than returning a public cancellation status. |
 
-Worker sessions are fresh per episode. Selected JIT and provenance paths are
-added by the child's `before_agent_start` hook; the capsule is supplied once as
-Pi's task prompt. Actual message/tool events are retained under
-`.pi/capsule/episodes/`. `raw_history` is only the absolute readable JSONL path;
-contents are never automatically previewed, injected, or loaded next episode.
-Archive failure prevents both successful handoff and JIT publication. Partial
-events are retained for runtime failures when possible.
+The backend uses Pi's actual `session.abort()` boundary. It does not claim an OS
+sandbox: an unresponsive JavaScript event loop cannot run a userspace timer, and
+SDK startup that ignores cancellation can only be marked unconfirmed. In that
+case the service deliberately prevents a subsequent delegation from overlapping
+the unresolved owner. A late-created SDK session is immediately asked to abort
+and disposed.
 
-## Setup and example
+## Automated coverage
 
-```sh
-npm ci
-npm run build
-export CAPSULE_LUNA_MODEL='provider/model-id'
-export CAPSULE_LUNA_TOOLS='read,bash,edit,write'
-pi --extension "$(pwd)/src/extension/index.ts"
-```
+`tests/capsule.test.ts` covers JSON-like and prose examples, answer pass-through,
+negative completion, blocked/error envelopes, readable path-only artifacts,
+targeted transcript search, internal two-episode JIT reclamation, storage failure,
+normal terminating yield registration, duplicate yield rejection, parent/child
+tool separation, cooperative cancellation, hanging retention, a late handoff,
+single timeout delivery, no late JIT, and overlap prevention.
 
-Pi provider authentication must already be configured. `CAPSULE_STATE_DIR`
-(absolute, Astra-readable, and inside the project) and `CAPSULE_LUNA_TIMEOUT_MS` are optional. A first
-Astra call is:
+The fault backends are deterministic/cooperative test doubles. Hook tests execute
+the real inline extension boundary, but no authenticated live-model call or
+deliberately hung real provider/tool process was run in this implementation pass.
+Accordingly, these tests establish service supervision and SDK API wiring, not a
+hard process-isolation guarantee. The separate legacy acceptance suite remains
+the compatibility check for the scripted path.
 
-```json
-{"capsule":"Inspect the locked test setup, run the focused check, adapt from its output, and yield the actual result plus a guarded reusable lesson."}
-```
+## Development setup and verification
 
-Luna's sole final call can be:
+The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings
+default Astra to `openai-codex/gpt-6-astra` and load the extension. Luna defaults
+to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_LUNA_MODEL=provider/model-id`
+overrides it. `CAPSULE_LUNA_TOOLS`, `CAPSULE_LUNA_TIMEOUT_MS`, and absolute
+project-contained `CAPSULE_STATE_DIR` retain their documented behavior.
+Authentication comes from normal Pi config.
 
-```json
-{"reason":"completed","report":"The check ran and reached a genuine failing assertion; no dependencies changed.","JITed_history":[{"topic":"project-tests","content":"Applies while the lockfile is unchanged. Run the focused test from the project root; do not update dependencies. Verify the intended assertion executed and inspect its result."}]}
-```
-
-A second `delegate_capsule` gets its new capsule plus this lesson, but not the
-first capsule or transcript. Astra can explicitly search the returned path with
-`rg -n -F -C 2 -- "failure" "/absolute/episode.jsonl"`.
-
-## Test scope
+Run:
 
 ```sh
 npm run build
-npx vitest run tests/capsule.test.ts --reporter=verbose
+./node_modules/.bin/vitest run tests/capsule.test.ts --reporter=verbose
 npm test
 npm run test:acceptance
 ```
 
-The Capsule suite uses a deterministic recording backend at the backend/service
-boundary and the real extension registration function. It tests contracts,
-adaptive event order, path-only retention and targeted search, two episodes,
-mixed/missing/malformed yields, cancellation, timeout, and archive failure. Pi
-SDK integration compiles against pinned 0.85.1. A live two-episode smoke test
-passed with `openai-codex/gpt-5.6-sol` as Astra and
-`openai-codex/gpt-5.6-luna` as Luna: both yielded, the second reused retained
-JIT, the first transcript remained readable, and the second transcript excluded
-the first capsule and raw-only marker.
+See [interfaces](INTERFACES.md), [Pi integration](PI-INTEGRATION.md), and the
+[context lifecycle](CONTEXT-LIFECYCLE.md) for the active contract and boundaries.
+Historical claims and the original proposal remain historical evidence, not
+current live verification.

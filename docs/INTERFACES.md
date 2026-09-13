@@ -1,327 +1,237 @@
-# Two-tool contract: delegate_capsule() and yield()
+# Two tools, example-guided output, bounded execution
 
-**Implemented v1 contract.**
+**Implemented contract: 14 September 2026.** See
+[implementation status](IMPLEMENTATION.md) and the
+[agent implementation prompt](IMPLEMENTATION-PROMPT.md).
 
 ```text
-Astra calls delegate_capsule({ capsule })
-    -> Luna works with selected JIT + the current capsule
-    -> Luna calls yield({ reason, report, JITed_history })
-    -> plugin returns the handoff as the original delegate_capsule tool result
-    -> Astra receives the reply in context and continues
+Astra: delegate_capsule({ capsule, output_example, timeout_s? })
+Luna:  yield({ reason, result?, notes?, JITed_history })
+
+Completed -> compact result + optional notes file path + transcript path
+Failed    -> mandatory inline notes + transcript path when available
+JIT       -> project-local knowledge for later Luna episodes, not Astra's return
 ```
 
-These are the only two additional model-facing interfaces. They do not replace
-ordinary read, shell, or editing tools. No polling, separate acceptance call, or
-memory-management tool is required. Reuse an existing subagent backend and Pi
-hooks as described in [PI-INTEGRATION.md](PI-INTEGRATION.md).
+These are the only two additional model-facing tools. Ordinary Pi tools remain
+available under the configured runtime permissions. The parent call returns
+once through normal tool-result context; no polling or duplicate message.
 
-## 1. Model-facing payloads
-
-```ts
-/** Available to Astra. */
-interface DelegateCapsuleArgs {
-  /** Self-contained Markdown instructions for this delegation. */
-  capsule: string;
-}
-
-/** Reusable project-local knowledge, not task authority or a transcript. */
-interface JitEntry {
-  /** Stable topic key, such as "project-tests" or "nix-entry". */
-  topic: string;
-  /** Complete replacement text for the topic's retained lesson. */
-  content: string;
-}
-
-/** Available to Luna. Ends the current delegated episode. */
-interface YieldArgs {
-  reason: "completed" | "needs_decision" | "blocked";
-  /** Markdown report for Astra's current decision. */
-  report: string;
-  /** Topic updates. [] means no update, not delete existing knowledge. */
-  JITed_history: JitEntry[];
-}
-```
-
-All fields shown are required; unknown properties reject. Keep the exact
-capitalization of `JITed_history`. The JSON tool name is `yield`; implementation
-functions can be named `handleYield` rather than using a language keyword.
-
-### delegate_capsule: plain-text direction in
-
-The capsule is one string, not a command batch or permission ledger. Astra
-includes the goal, relevant context and fixed decisions, local discretion,
-constraints, and yield conditions as needed. Headings are guidance, not required
-schema fields. Preserve its wording; do not silently summarize or truncate it.
-
-The plugin supplies the configured Luna model, project, ordinary tool settings,
-stop limits, selected JIT content, and the child-to-parent binding. Neither model
-supplies execution/session IDs, callback addresses, or history paths. The parent
-call remains pending until the foreground delegation finishes; it does not
-return a job ID requiring another Astra call.
-
-### yield: terminal handoff out
-
-| Reason | Meaning |
-| --- | --- |
-| `completed` | The requested result or reporting gate was reached. |
-| `needs_decision` | Continuing requires Astra's judgment; the report states the question or choice. |
-| `blocked` | Available information, environment, or permitted actions cannot reach the gate; the report explains the blocker. |
-
-`completed` is not synonymous with passing tests. A task to run tests and report
-their actual result can complete with a genuine failing test. Schema validity
-does not establish factual correctness.
-
-The report should state what actually ran, the observed result, verification,
-changes, and unresolved issues or the next decision. Keep this as Markdown
-rather than turning every heading into a mandatory field. JIT content has a
-different destination: the next Luna context, not just Astra's current decision.
-
-## 2. JIT updates and provenance
-
-Scope entries to the current project and use `topic` as a logical key, not a
-filesystem path. Each entry replaces that topic's complete retained text;
-unmentioned topics remain unchanged. An empty array leaves existing JIT intact.
-Reject duplicate topics within a single yield. This check belongs in the
-handler; ordinary array uniqueness does not establish unique topic keys.
-
-Each lesson should retain applicability, the useful procedure, the minimum
-safety guard, and decisive verification. No new reusable lesson is a valid
-outcome. Do not fill the array with a transcript, unverified conjecture, or
-expired task permissions merely to produce an update.
-
-After saving the actual raw episode, the plugin attaches its history reference
-to retained entries. `raw_history` is plugin-owned provenance, not a field Luna
-can invent in `yield`. Retention does not certify the lesson: it remains
-worker-authored knowledge. Astra sees the update in the handoff and can direct
-corrections through the next capsule. Current instructions and runtime
-permissions take precedence; a saved lesson grants no additional authority.
-
-## 3. The plugin-generated result returned to Astra
-
-```ts
-type DelegateCapsuleResult =
-  | {
-      status: "yielded";
-      reply: YieldArgs;
-      /** Absolute path to an existing readable transcript file; never transcript data. */
-      raw_history: string;
-    }
-  | {
-      status: "cancelled" | "timeout" | "error";
-      /** Plugin-authored account of known observations and missing parts. */
-      report: string;
-      /** Absolute readable partial-transcript path, or null. */
-      raw_history: string | null;
-    };
-```
-
-Runtime status and Luna's reason are separate. `status: "yielded"` with
-`reply.reason: "blocked"` is a valid terminal handoff. A timeout without a valid
-yield is not a Luna-authored report. Use an actual absolute transcript file path
-when one exists; otherwise use `null` on the failure branch, never a fabricated
-path. `raw_history` is never transcript text, serialized messages, encoded
-bytes, a URI, or an opaque ID. Runtime checks readability after atomic retention;
-schema string validation alone is intentionally insufficient.
-
-Automatic injection is ordinary model-visible tool-result delivery:
-
-```ts
-// In Astra's delegate_capsule.execute(), after backend terminal completion.
-// `result` is the validated DelegateCapsuleResult, not the child ToolResult.
-return {
-  content: [{ type: "text", text: JSON.stringify(result) }],
-  details: result,
-};
-```
-
-Put the packet in `content`, not only `details`. Do not also call
-`sendUserMessage()` or inject a second custom message containing the same reply.
-Return the bounded report and JIT updates together; transcript contents remain
-behind the path and are retrieved on demand through Astra's ordinary read/search
-tools. Capsule never previews, reads, or injects them automatically.
-
-These statuses are domain outcomes in the returned content; they do not by
-themselves set Pi's native tool-error flag. Invalid input should use the normal
-validation/tool-error path rather than being treated as a completed delegation.
-On user cancellation, preserve the available outcome for normal continuation;
-do not force another Astra inference against the cancellation.
-
-## 4. Yield termination and publication
-
-Require `yield` as Luna's sole final tool call. Reject mixed yield/work batches
-instead of publishing a handoff while other work is running. The adapter must
-check this boundary; a prompt instruction or `terminate` hint alone is not an
-enforcement mechanism. Reject duplicate terminal yields for the same episode.
-
-The worker handler validates and records the packet, then returns
-`terminate: true`. The parent waits for the backend's terminal completion, or
-for settled/idle state in a hook-based adaptation, before final publication.
-Do not equate every `agent_end` event with a finished delegation. Read the
-structured yield, not merely the last assistant text; missing yield is an error,
-not an invitation to fabricate one from prose.
-
-Do not forward the child's termination flag to Astra. Luna stops; Astra should
-continue after receiving the original delegation result. Bind and deliver the
-reply once within this invocation using the backend's existing request binding;
-this does not require a new durable authorization or exactly-once system.
-
-After terminal completion, save the raw episode including the yield, retain the
-topic updates with provenance, and prepare the next Luna context. If archiving
-or required persistence fails, return an honest error rather than claiming
-successful reclamation or installing an untraceable JIT update. Preserve
-available observations. Invalid arguments must not publish JIT or trigger
-reclamation; allow ordinary correction within the remaining run limits.
-
-The next Luna input is base instructions, selected retained JIT with references,
-the next capsule, and new episode messages only. Do not prune Astra's context,
-erase raw history, replay tools, or leave orphaned tool-call/result fragments.
-Fresh child contexts are the first implementation path; see
-[CONTEXT-LIFECYCLE.md](CONTEXT-LIFECYCLE.md) for the full lifecycle.
-
-## 5. Schema files and defaults
-
-| JSON Schema | Purpose |
-| --- | --- |
-| [delegate_capsule.schema.json](schemas/delegate_capsule.schema.json) | Astra's input parameters. |
-| [yield.schema.json](schemas/yield.schema.json) | Luna's input parameters. |
-| [delegate_capsule-result.schema.json](schemas/delegate_capsule-result.schema.json) | Plugin-generated return envelope; references the yield schema. |
-
-The JSON files use draft-07. The return envelope is an internal/output schema,
-not a third model-facing tool. These are documentation assets, not registered
-runtime endpoints. The TypeBox parameter definitions below mirror the two input
-schemas; use their plain string enum representation for the provider-facing tool.
-
-| Value | v1 default ceiling |
-| --- | --- |
-| Capsule | 32,000 characters; nonblank. |
-| Report | 12,000 characters; nonblank. |
-| JIT updates | 8 entries; `[]` allowed. |
-| Topic | 64 characters; `^[a-z0-9][a-z0-9_-]*$`. |
-| Lesson content | 4,000 characters per entry; nonblank. |
-
-These are proposed defaults, not targets or limits established by the original
-proposal. Reject oversized input; do not silently truncate decisions or
-verification. Schema checks establish shape, not truth, applicability, permission,
-archive existence, or unique topic keys; the latter checks need ordinary handler
-logic or actual evidence as applicable.
-
-```ts
-import { Type } from "typebox";
-import { StringEnum } from "@earendil-works/pi-ai";
-
-export const DelegateCapsuleParameters = Type.Object(
-  {
-    capsule: Type.String({
-      minLength: 1,
-      maxLength: 32_000,
-      pattern: "\\S",
-      description:
-        "Self-contained Markdown instructions for Luna: the objective, " +
-        "relevant decisions and context, constraints, local discretion, " +
-        "and when to yield.",
-    }),
-  },
-  { additionalProperties: false },
-);
-
-const JitEntryParameters = Type.Object(
-  {
-    topic: Type.String({
-      minLength: 1,
-      maxLength: 64,
-      pattern: "^[a-z0-9][a-z0-9_-]*$",
-      description:
-        "Project-local knowledge key, not a file path. " +
-        "Reuse an existing topic to update its lesson.",
-    }),
-    content: Type.String({
-      minLength: 1,
-      maxLength: 4_000,
-      pattern: "\\S",
-      description:
-        "Complete replacement lesson for this topic. Include applicability, " +
-        "the useful procedure, essential guard, and verification. " +
-        "Exclude task-specific permission grants and raw transcripts.",
-    }),
-  },
-  { additionalProperties: false },
-);
-
-export const YieldParameters = Type.Object(
-  {
-    reason: StringEnum([
-      "completed",
-      "needs_decision",
-      "blocked",
-    ] as const),
-    report: Type.String({
-      minLength: 1,
-      maxLength: 12_000,
-      pattern: "\\S",
-      description:
-        "Markdown report for Astra: observed result, verification, " +
-        "changes, unresolved issues, and any decision needed. " +
-        "Completed delegation does not imply passing checks.",
-    }),
-    JITed_history: Type.Array(JitEntryParameters, {
-      maxItems: 8,
-      description:
-        "Reusable project-local topic updates. Use [] when no useful " +
-        "verified lesson was learned. Omitted topics remain unchanged.",
-    }),
-  },
-  { additionalProperties: false },
-);
-```
-
-The corresponding tested implementation is `src/capsule/contracts.ts`.
-
-## 6. Example delegation and yield
-
-The following pair is illustrative, not a result observed in this workspace.
-Astra supplies the first object to `delegate_capsule`; Luna supplies the second
-to `yield` after reaching the stated gate.
+## Astra's input
 
 ```json
 {
-  "capsule": "## Goal\nMake the project's existing test command execute against the current workspace, then report its actual result.\n\n## Decisions and constraints\nUse the existing development setup and locked dependencies. Do not upgrade dependencies or modify application source or tests.\n\n## Local discretion\nInspect project instructions, diagnose invocation failures, and adjust the command or environment entry within those constraints.\n\n## Yield when\nThe test runner produces a genuine test result, or further progress requires a decision outside these instructions.\n\n## Report\nState what ran, what passed or failed, what changed, and what Astra needs to decide next. Retain any verified invocation lesson worth reusing."
+  "capsule": "Run npm test. Return whether the suite completed and passed. Do not modify source or tests. If the assessment cannot be completed, yield blocked instead of inventing an answer.",
+  "output_example": "{\"ok\":true}",
+  "timeout_s": 120
 }
 ```
+
+`capsule` is self-contained plain text or Markdown. It carries the objective,
+relevant facts and decisions, constraints, local discretion, and yield gate.
+It is not a pre-enumerated command list or a permission ledger.
+
+`output_example` is a required nonblank **string of prompt guidance**. Preserve
+it verbatim. It may contain example JSON, a sentence, or a self-explanatory
+format. Do not require it to parse as JSON. The values illustrate the answer's
+format, not conclusions to copy. The capsule defines what the answer means.
+
+There is no caller-provided output schema, inferred generic type, result-shape
+checker, coercion, silent field removal, or formatting-repair loop. Trust Luna
+to follow the example and let Astra review its answer. A different JSON shape
+or a text result is not a runtime error merely because the example differed.
+
+`timeout_s` is optional, positive, finite seconds. The default is
+**300 seconds**, configurable at the plugin level. An explicit per-call value
+wins over the configured default. Add a separate **5-second cleanup allowance**.
+Validate timer representability rather than allowing overflow or an unlimited
+wait. These defaults are enforced by the current runtime.
+
+The plugin supplies Luna's configured model, project, tools, selected JIT,
+transcript locations, and parent/child binding. Do not let either model invent
+callback addresses or archive paths.
+
+## Luna's yield
 
 ```json
 {
   "reason": "completed",
-  "report": "## Result\nThe documented development shell ran the requested tests against the current workspace. The test runner reached a genuine failing test.\n\n## Verification\nInspected the test output and confirmed that this was a test failure rather than a missing executable or environment-entry failure.\n\n## Changes\nNo application source, tests, or dependency files were changed.\n\n## Next decision\nAstra should inspect the failing assertion before authorizing a semantic patch.",
-  "JITed_history": [
-    {
-      "topic": "project-tests",
-      "content": "For this project's current flake and lockfile, run `nix develop -c npm test` from the project root. Recheck this procedure when the development setup changes. Verify that the intended tests actually execute and inspect their results: successful environment entry is not a passing test suite."
-    }
-  ]
+  "result": {"ok": false},
+  "notes": "The requested suite completed with a failing assertion. No source or test files were changed. Detailed output is in the retained transcript.",
+  "JITed_history": []
 }
 ```
 
-The decisive implementation test is two consecutive delegations: the second
-Luna request contains the new capsule and retained lesson but no distinctive
-old-capsule/log marker; the first raw episode is still retrievable; Astra
-receives one first-delegation result. Also test schema rejection, topic update
-semantics, mixed batches, malformed/missing yield, cancellation, timeout, and
-archive failure. These are acceptance targets, not tests already passed.
+| Field | Fixed handoff rule |
+| --- | --- |
+| `reason` | Required: `completed` or `blocked`. Needing Astra's judgment is a blocker. |
+| `result` | Any JSON value, including text. Required on a completed handoff; omit on a blocked handoff. Its internal shape is not checked against the example. |
+| `notes` | Optional supplementary prose on completion; required, nonblank explanation on a blocked handoff. |
+| `JITed_history` | Required array of project-local `{topic, content}` updates. `[]` means no update. Not forwarded to Astra. |
 
-## Basis and API references
+Only validate this small fixed envelope, JSON transportability, and the existing
+JIT storage fields. Requiring a result key or blocker explanation is not a type
+checker for the answer. An example mismatch must not trigger automatic repair.
+Invalid tool envelopes can use normal tool-argument handling within the original
+deadline; do not start a new repair workflow or reset the clock.
 
-The [original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the report/JIT
-distinction and context replacement. The user's subsequent direction supplies
-the two tool names and automatic return to Astra. The exact fields, reason enum,
-topic-array semantics, error envelope, and size defaults are the follow-up v1
-design formalization, not text quoted from the original proposal.
+`completed` means the requested assessment finished, not that its answer was
+positive. An established failing test can produce `result: {"ok": false}`.
+An unavailable test result is `blocked`, not an invented false answer. A detail
+that invalidates the answer must change the answer or status, not be buried in
+an optional notes file.
 
-Pi semantics used here were checked against the installed package's
-[extension reference](../node_modules/@earendil-works/pi-coding-agent/docs/extensions.md)
-and its
-[structured-output example](../node_modules/@earendil-works/pi-coding-agent/examples/extensions/structured-output.ts):
-`content` is model-visible, `appendEntry` is not; terminating results have
-batch-wide conditions; `agent_end` and `agent_settled` differ; `context` projects
-messages before a model call. See [PI-INTEGRATION.md](PI-INTEGRATION.md) for the
-upstream reference links and backend compatibility caveats. No runtime feature
-is enabled by writing these documents or schema files.
+A blocked yield is, for example:
+
+```json
+{
+  "reason": "blocked",
+  "notes": "The test command could not start because the required local service is unavailable. No test result was established. Astra must decide whether starting that service is within scope.",
+  "JITed_history": []
+}
+```
+
+## What automatically enters Astra's context
+
+The paths below are illustrative, not claims that these files exist.
+
+Completed delegation:
+
+```json
+{
+  "status": "completed",
+  "result": {"ok": false},
+  "notes_path": "/absolute/state/episode-17/notes.md",
+  "raw_history": "/absolute/state/episode-17/transcript.jsonl"
+}
+```
+
+A completed result has `status`, `result`, and a retained `raw_history` path.
+Save supplementary notes to a UTF-8 file and include `notes_path` only when
+notes exist and were saved. Do not inline completion notes, JIT, a transcript
+preview, or the backend's messages array. Omit absent optional fields rather
+than requiring null placeholders.
+
+Every non-completed return has mandatory expanded inline `notes`:
+
+```json
+{
+  "status": "blocked",
+  "notes": "The test command could not start because the required local service is unavailable. No test result was established. Astra must decide whether starting that service is within scope.",
+  "raw_history": "/absolute/state/episode-18/transcript.jsonl"
+}
+```
+
+```json
+{
+  "status": "timeout",
+  "notes": "The 120-second deadline expired while the test command was running. No complete test result was established. Termination was requested, but cleanup could not be confirmed within the allowance; another delegation must not overlap unresolved work."
+}
+```
+
+```json
+{
+  "status": "error",
+  "notes": "Transcript retention failed. The delegation cannot be published as completed, no new JIT was installed, and no readable transcript path is available."
+}
+```
+
+The only non-completed statuses are `blocked`, `timeout`, and `error`. They have
+no `result` or `notes_path`. `notes` explains the cause, known partial outcome,
+and needed action or decision directly, without requiring Astra to read a file.
+It is actionable prose, not the entire transcript. Use Luna's explanation for
+`blocked`; the plugin generates timeout/error notes from known observations
+without waiting for Luna. Notes remain mandatory even when file storage fails.
+An available partial transcript can be returned as `raw_history`; otherwise
+omit that field. Never invent a path.
+
+User interruption still aborts and cleans up runtime work, but is not a public
+`cancelled` answer and must not force another Astra inference. `needs_decision`
+is merged into `blocked`. The former `yielded` / `reply` / mandatory `report`
+return is superseded, not an alternate current contract.
+
+Construct the parent envelope explicitly and serialize it into the original
+tool result's `content`. Do not spread the child yield/backend result. Do not
+also inject a user/custom message. Optional `details` must not become a hidden
+route that forwards raw history or JIT to the parent model.
+
+## Files and JIT remain just-in-time
+
+`raw_history` is exclusively an absolute path to the actual retained, searchable
+UTF-8 transcript. It is never file contents, encoded bytes, a URI, or an opaque
+session ID. Paths must remain readable by Astra's ordinary tools after child
+cleanup. Preserve the existing requirement that configured state stays inside
+the project. Prefer existing backend/session artifacts; retain a local accessible
+copy when necessary. Do not return deleted worker-temporary paths.
+
+Astra may explicitly search the path, for example:
+
+```sh
+rg -n -F -C 2 -- "failure text" "/absolute/state/episode-17/transcript.jsonl"
+```
+
+The plugin does not run that search, open notes, or load a transcript by default.
+No extra history-search tool is required. Preserve actual observations without
+inventing missing events or adding credentials to the archive. A completed
+return requires successful retention; storage failure becomes `error` with
+inline notes. Preserve existing JIT when publication fails.
+
+JIT uses project-local topic replacement: a new `{topic, content}` replaces that
+topic's text, omitted topics stay unchanged, and `[]` does not erase knowledge.
+Retain applicability, the useful procedure, essential guard, and verification.
+The plugin attaches transcript-path provenance. JIT is worker-authored knowledge,
+not certification or standing permission; do not edit global skills by default.
+Publish only from a valid, timely, settled yield with retained provenance. A
+blocked yield may contain a genuine verified lesson; its task remains blocked.
+Timeout, runtime error, interrupted, malformed, or late yields publish no JIT.
+Astra can inspect/correct knowledge deliberately; it is not automatically shown.
+
+## Watchdog and terminal handling
+
+Start one parent-owned monotonic deadline at tool entry, after basic argument
+checks and before any awaited configuration, JIT load, worker setup, or dispatch.
+It covers model calls, tools, retries, waiting for yield, settlement, and normal
+result preparation. Progress and format corrections never reset it. Keep it
+active until the normal parent result and required persistence are ready.
+
+On expiry, choose timeout once, stop new work, request backend abort, and bound
+cleanup/partial-history finalization to the separate 5-second allowance. Never
+await abort(), waitForIdle(), a terminal event, disposal, or storage indefinitely.
+A never-yielding worker must not keep the parent call open. Ignore late results
+and fence late JIT publication; delayed callbacks must not overwrite terminal
+state or release ownership of a newer episode.
+
+Use actual backend termination of the worker and owned commands, not only a
+Promise.race that leaves Luna running. If the current in-process adapter cannot
+terminate uncooperative work, minimally adapt an existing terminable Pi child
+runner; do not create a generalized controller or kill the parent. If cleanup
+cannot be confirmed, say so inline and block overlap in the affected workspace.
+The target bound is timeout_s plus cleanup allowance under a responsive parent
+runtime; userspace timers are not a hard OS scheduling or sandbox guarantee.
+
+Normal yield remains the sole final worker tool call. Reject mixed yield/work
+batches and duplicate terminal publication. Wait for normal backend completion
+without forwarding the worker's termination flag to Astra. The watchdog is an
+independent exit, not another wait for settlement. Keep internal user-abort
+cleanup and remove timers/listeners on every exit.
+
+## Fixed-envelope references
+
+The three existing [input](schemas/delegate_capsule.schema.json),
+[yield](schemas/yield.schema.json), and
+[parent-result](schemas/delegate_capsule-result.schema.json) schema files now
+describe only the fixed transport envelopes. `result` is unconstrained JSON.
+These are documentation/implementation references, not schemas requested from
+Astra and not evidence that the runtime has been migrated.
+
+Retain the existing capsule ceiling (32,000 characters) and JIT ceilings
+(8 entries, 64-character topic matching `^[a-z0-9][a-z0-9_-]*$`, 4,000-character
+lesson). Check duplicate topics in the handler. A nonblank output example need
+not parse; failure notes must remain explanatory rather than being replaced
+by a path. No generic Result<T> machinery is required.
+
+The [original proposal](sources/ORIGINAL-PROPOSAL.txt) supplies the delegation,
+yield, and JIT lifecycle. The latest user refinements supply example-guided
+answers, asymmetric notes, simplified statuses, and an enforced timeout.
+[Pi integration](PI-INTEGRATION.md) distinguishes available hooks from behavior
+that still needs implementation and testing.

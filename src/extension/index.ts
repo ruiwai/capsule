@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import { isAbsolute } from "node:path";
 import { ScriptedService } from "../controller/scripted.js";
 import { object, text } from "../controller/scripted-contract.js";
-import { DelegateCapsuleParameters, type DelegateCapsuleResult } from "../capsule/contracts.js";
+import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } from "../capsule/contracts.js";
 import { PiSdkBackend, resolveConfiguredModel } from "../capsule/backend.js";
 import { CapsuleService } from "../capsule/service.js";
 
@@ -57,15 +57,16 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           const tools = (process.env.CAPSULE_LUNA_TOOLS ?? "read,bash,edit,write").split(",").map(x => x.trim()).filter(Boolean);
           const stateRoot = process.env.CAPSULE_STATE_DIR;
           if (stateRoot && !isAbsolute(stateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");
-          const timeoutMs = Number(process.env.CAPSULE_LUNA_TIMEOUT_MS ?? 600_000);
-          if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw Error("configuration_required: CAPSULE_LUNA_TIMEOUT_MS must be a positive integer");
+          const timeoutMs = Number(process.env.CAPSULE_LUNA_TIMEOUT_MS ?? 300_000);
+          if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_LUNA_TIMEOUT_MS must be a representable positive integer");
           const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: stateRoot ? `${stateRoot}/worker-sessions` : `${ctx.cwd}/.pi/capsule/worker-sessions`, model, tools });
           service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs });
         }
         const value = await service.delegate(args, signal);
         return { content: [{ type: "text", text: JSON.stringify(value) }], details: value };
       } catch (error) {
-        const value: DelegateCapsuleResult = { status: "error", report: String(error), raw_history: null };
+        if ((error as any)?.name === "AbortError" || signal?.aborted) throw error;
+        const value: DelegateCapsuleResult = { status: "error", notes: `Capsule setup failed before a result was established. Correct the configuration or runtime error and retry: ${String(error)}` };
         return { content: [{ type: "text", text: JSON.stringify(value) }], details: value };
       }
     },
