@@ -1,0 +1,2 @@
+Historical note (not current authority): use the retained snapshot.
+This file is intentionally incomplete after this line:

@@ -1,0 +1,29 @@
+{
+  "name": "pi-capsule",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence-bound Pi delegation controller",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run tests/contracts.test.ts tests/runtime.test.ts tests/stabilization.test.ts",
+    "test:acceptance": "vitest run tests/contracts.test.ts tests/runtime.test.ts tests/stabilization.test.ts",
+    "check": "npm run build && npm test",
+    "compat": "tsx src/cli.ts compat",
+    "demo": "tsx src/cli.ts demo",
+    "luna-smoke": "tsx src/cli.ts luna-smoke"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "typebox": "1.3.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "4.1.9"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}

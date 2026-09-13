@@ -27,7 +27,7 @@ export class Controller {
   }
   async init() {
     await mkdir(this.store.root, { recursive: true, mode: 0o700 }); await this.store.init();
-    try { for (const line of (await readFile(join(this.store.root, "events/events.jsonl"), "utf8")).trim().split("\n").filter(Boolean)) { const e = JSON.parse(line); if (e.type === "execution_receipt") { this.actions.set(e.receipt.requestId, { digest: e.digest, receipt: e.receipt }); this.receipts.push(e.receipt); } else if (e.type === "action_intent" && !this.actions.has(e.requestId)) this.actions.set(e.requestId, { digest: e.digest }); } } catch { /* new state */ }
+    try { for (const line of (await readFile(join(this.store.root, "events/events.jsonl"), "utf8")).trim().split("\n").filter(Boolean)) { const e = JSON.parse(line); if (e.type === "execution_receipt") { this.actions.set(e.receipt.requestId, { digest: e.digest, receipt: e.receipt }); this.receipts.push(e.receipt); } else if (e.type === "action_intent" && !this.actions.has(e.requestId)) this.actions.set(e.requestId, { digest: e.digest }); } } catch (e:any) { if (e?.code !== "ENOENT") throw new Error("state_corrupt: journal is not valid JSON"); }
     await this.store.appendEvent({ type: "episode_authorized", episodeId: this.episodeId, capsuleDigest: this.capsule.digest, at: new Date().toISOString() });
   }
   async action(requestId: string, recipe: Recipe, spec: CommandSpec, meta: { unitId: string; failureClass?: string; retryOf?: string | null; handleId?: string }, abort?: AbortSignal) {
@@ -44,9 +44,10 @@ export class Controller {
     else if (this.receipts.some(r => r.exitCode !== 0 || r.cancelled || r.timedOut) && this.capsule.effectiveRetry.mode === "none") throw new Error("lifecycle_stop: strict no-retry policy");
     const timeoutMs = Math.min(spec.timeoutMs, Number(budget.perCommandMs), recipe.maximumMs, Math.max(1, Number(budget.wallMs) - elapsed - Number(budget.reportReserveMs)));
     this.actions.set(requestId, { digest });
+    await this.store.appendEvent({ type: "action_intent", requestId, digest, recipeId: recipe.id, at: new Date().toISOString() });
+    // The durable intent is the admission barrier: no child exists before it.
     const promise = execute({ ...spec, timeoutMs }, { taskId: this.capsule.taskId, episodeId: this.episodeId, requestId, capsuleDigest: this.capsule.digest, unitId: meta.unitId, recipeId: recipe.id, recipeDigest: recipe.digest, handleId: meta.handleId }, this.store, abort);
     this.actions.get(requestId)!.promise = promise;
-    await this.store.appendEvent({ type: "action_intent", requestId, digest, recipeId: recipe.id, at: new Date().toISOString() });
     const receipt = await promise;
     this.actions.get(requestId)!.receipt = receipt; this.receipts.push(receipt); await this.store.appendEvent({ type: "execution_receipt", digest, receipt }); return receipt;
   }
