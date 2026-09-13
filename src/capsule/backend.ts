@@ -41,7 +41,7 @@ export function createWorkerExtension(
     });
     pi.registerTool({
       name: "yield", label: "Yield to the parent agent",
-      description: "End the assignment with yield as the sole final tool call; do not continue afterward. Use completed with result for an established answer, including negative checks; use blocked with explanatory notes when completion needs parent input or unavailable prerequisites. JITed_history is required; use [] when there is no reusable lesson.",
+      description: "End with yield as the sole final tool call; do not continue. Use completed + result for an established answer, including failed checks; blocked + notes for missing prerequisites or required parent input. Always include JITed_history.",
       parameters: YieldParameters,
       async execute(_id, args) {
         validateYield(args);

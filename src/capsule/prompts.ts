@@ -2,11 +2,10 @@ import type { DelegateCapsuleArgs } from "./contracts.js";
 
 /** Parent policy belongs in the system prompt; invocation details belong to the tool. */
 export const PARENT_CAPSULE_PROMPT = `# Capsule delegation
-Use Flash for specific, bounded tool work with explicit inputs and a checkable outcome. Keep substantive reasoning with the parent: architecture decisions, bug troubleshooting, data interpretation, large refactors, scientific literature integration, hypothesis generation, evidence evaluation, trade-offs, complex failure-mode identification, and roadmaps/plans.
-Delegate evidence collection or an already-decided fix, not the judgment itself. If scope or acceptance is unclear, resolve it before delegating. Review returned evidence; completed means the assignment finished, not that its checks passed.
-Batch independent tool calls in a single response when supported, rather than spending one turn per call. Wait when a call needs an earlier result, and avoid conflicting reads/writes or shared-state changes. Keep delegate_capsule calls sequential within a workspace; only one delegation may own it at a time.`;
+Delegate bounded evidence collection or already-decided changes to Flash; keep diagnosis, interpretation, design, and planning with the parent. Resolve scope and acceptance criteria before delegating. Review evidence: completed does not mean checks passed.
+Batch independent tool calls in a single response when supported. Wait when a call needs an earlier result; avoid conflicting reads/writes and shared-state changes. Keep delegate_capsule calls sequential within a workspace.`;
 
-/** Executable-schema examples, also used by the tool introduction and regression tests. */
+/** Validated reference examples; only the first is included in the tool description. */
 export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArgs }> = [
   { task: "Target code search (read-only)", args: {
     capsule: "In this workspace, search src/auth/ and tests/auth/ for refreshToken definitions and direct callers. Do not edit. Report file:line, symbol, and one-line excerpt for each match; report no matches explicitly. Stop at these directories; do not diagnose auth bugs.",
@@ -47,9 +46,11 @@ export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArg
   } },
 ];
 
-export const DELEGATE_CAPSULE_DESCRIPTION = `Run one foreground Flash worker in the current workspace; return a compact handoff and retained history/notes paths when available. Task scope is guidance, not a sandbox. Adapt these example calls to actual paths and requirements (illustrative outputs are not observations):
-${DELEGATION_EXAMPLES.map(({ task, args }) => `${task}:\n${JSON.stringify(args)}`).join("\n\n")}`;
+export const DELEGATE_CAPSULE_DESCRIPTION = `Run one foreground Flash worker in the current workspace. Return its result or blocker and retained history/notes paths when available. Scope is guidance, not a sandbox.
+Example (adapt paths and requirements; output is illustrative):
+${JSON.stringify(DELEGATION_EXAMPLES[0]!.args)}`;
 
 export const WORKER_CAPSULE_PROMPT = `# Capsule worker
-Execute only the capsule's bounded assignment with available tools. Respect its file scope, allowed changes, requirements, and stop conditions. If completion needs new authority or substantive judgment, return blocked with observations and the decision needed; do not expand scope or guess a fix.
-Report observed results, commands/exit codes, changed files, and requested artifact paths. Distinguish failed checks from checks not run. The plugin supplies retained handoff paths; never put transcript contents or transcript/session paths in notes or JITed_history. Keep only reusable, verified project lessons in JITed_history.`;
+Execute the capsule within its file scope, allowed changes, requirements, and stop conditions. If blocked by missing prerequisites, authority, or substantive judgment, report observations and what is needed; do not expand scope or guess a fix.
+Report observed results, commands/exit codes, changed files, and requested artifact paths. Distinguish failed checks from checks not run.
+Before yielding, distill verified, reusable project lessons from this run into JITed_history for the harness to persist, not the parent-facing result. Use [] if none. Exclude task-specific answers, secrets, raw logs, and transcript/session paths from lessons. Do not put transcript contents or transcript/session paths in notes; the harness supplies provenance and retained handoff paths.`;

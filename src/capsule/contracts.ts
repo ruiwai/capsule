@@ -6,11 +6,11 @@ export const MAX_TIMER_MS = 2_147_483_647;
 
 export const DelegateCapsuleParameters = Type.Object({
   capsule: Type.String({ minLength: 1, maxLength: 32_000, pattern: nonBlank,
-    description: "Self-contained task contract: goal, cwd/input files or sources to explore, requirements and acceptance checks, allowed edits/commands, stop conditions, and required report fields/artifact paths. Include needed context; the worker cannot see the parent conversation." }),
+    description: "Self-contained assignment: goal, cwd/inputs, scope, allowed actions, acceptance checks, stop conditions, and report/artifact requirements. Include needed context; the worker cannot see the parent conversation." }),
   output_example: Type.String({ minLength: 1, pattern: nonBlank,
-    description: "Illustrative result format (JSON, table, list, or prose), passed unchanged to Flash; not a schema or an answer to copy. Show the evidence and artifact fields you need." }),
+    description: "Result-format example, passed verbatim to Flash; not a schema or an answer to copy. Show required evidence and artifact fields." }),
   timeout_s: Type.Optional(Type.Number({ exclusiveMinimum: 0,
-    description: "Optional positive deadline in seconds, including startup and result preparation; overrides the configured default (300s unless changed)." })),
+    description: "Deadline in seconds, including startup and result preparation. Default: configured timeout (normally 300s)." })),
 }, { additionalProperties: false });
 
 export const JitEntryParameters = Type.Object({

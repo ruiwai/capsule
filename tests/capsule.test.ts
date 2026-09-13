@@ -172,8 +172,13 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("Keep delegate_capsule calls sequential within a workspace");
     expect(injected.systemPrompt).not.toContain(WORKER_CAPSULE_PROMPT);
     expect(tools[0].description).not.toContain(PARENT_CAPSULE_PROMPT);
-    for (const { args } of DELEGATION_EXAMPLES)
-      expect(tools[0].description.split(JSON.stringify(args))).toHaveLength(2);
+    expect(tools[0].description.split(JSON.stringify(DELEGATION_EXAMPLES[0]!.args))).toHaveLength(2);
+    for (const { args } of DELEGATION_EXAMPLES.slice(1))
+      expect(tools[0].description).not.toContain(JSON.stringify(args));
+    expect(PARENT_CAPSULE_PROMPT.length + tools[0].description.length
+      + JSON.stringify(tools[0].parameters).length).toBeLessThan(2200);
+    expect(injected.systemPrompt).not.toContain("JITed_history");
+    expect(tools[0].description).not.toContain("JITed_history");
   });
   it("injects exact example/JIT and exposes only terminating yield in Flash", async () => {
     const tools: any[] = [], hooks = new Map<string, any>(), state = { hooksRan: false, duplicate: false };
@@ -183,6 +188,9 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("PLAIN EXAMPLE"); expect(injected.systemPrompt).toContain(lesson);
     expect(injected.systemPrompt.split("PLAIN EXAMPLE")).toHaveLength(2);
     expect(injected.systemPrompt).toContain(WORKER_CAPSULE_PROMPT);
+    expect(injected.systemPrompt).toContain("Before yielding, distill verified, reusable project lessons from this run");
+    expect(injected.systemPrompt).toContain("for the harness to persist, not the parent-facing result");
+    expect(injected.systemPrompt).toContain("Use [] if none");
     expect(injected.systemPrompt).not.toContain(PARENT_CAPSULE_PROMPT);
     expect(injected.systemPrompt).not.toContain("sole final tool call");
     expect(tools[0].description).toContain("sole final tool call");
