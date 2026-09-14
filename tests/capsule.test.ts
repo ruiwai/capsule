@@ -95,6 +95,13 @@ describe("refined Capsule lifecycle", () => {
     expect(backend.inputs[0].outputExample).toBe('{"ok":true}');
   });
 
+  it("passes a material constraint and its rationale unchanged", async () => {
+    const capsule = "Do not update dependencies: this run must remain comparable with the reviewed lockfile. You may adjust invocation; a required dependency change is a blocker.";
+    const backend = new RecordingBackend([settled("rationale", { reason: "completed", result: true, JITed_history: [] })]);
+    await new CapsuleService(backend, { projectRoot: root() }).delegate({ capsule, output_example: "true" });
+    expect(backend.inputs[0]!.capsule).toBe(capsule);
+  });
+
   it("returns blockers inline without result or notes_path", async () => {
     const packet: YieldArgs = { reason: "blocked", notes: "Service is unavailable; no answer was established. The parent agent must decide whether to start it.", JITed_history: [] };
     const result = await new CapsuleService(new RecordingBackend([settled("partial", packet)]), { projectRoot: root() })
@@ -108,9 +115,9 @@ describe("refined Capsule lifecycle", () => {
     const backend = new RecordingBackend([settled("OLD_TRANSCRIPT_NOISE_88"), settled("second", { reason: "completed", result: "different text shape", JITed_history: [] })]);
     const service = new CapsuleService(backend, { projectRoot: root() });
     await service.delegate({ capsule: "CAPSULE_A_DISTINCT", output_example: '{"ok":true}' });
-    const second = await service.delegate({ capsule: "CAPSULE_B_DISTINCT", output_example: "Return one sentence" });
+    const second = await service.delegate({ capsule: "Run the focused project assertion under the current lock", output_example: "Return one sentence" });
     expect(second.status === "completed" && second.result).toBe("different text shape");
-    expect(backend.inputs[1].capsule).toBe("CAPSULE_B_DISTINCT"); expect(backend.inputs[1].outputExample).toBe("Return one sentence");
+    expect(backend.inputs[1].capsule).toBe("Run the focused project assertion under the current lock"); expect(backend.inputs[1].outputExample).toBe("Return one sentence");
     expect(JSON.stringify(backend.inputs[1])).not.toContain("CAPSULE_A_DISTINCT");
     expect(JSON.stringify(backend.inputs[1])).not.toContain("OLD_TRANSCRIPT_NOISE_88");
     expect(backend.inputs[1].jit[0].content).toContain("Verify the decisive assertion");
@@ -358,8 +365,10 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt.split("PLAIN EXAMPLE")).toHaveLength(2);
     expect(injected.systemPrompt).toContain(WORKER_CAPSULE_PROMPT);
     expect(injected.systemPrompt).toContain("Return your report through the yield tool, not a plain-text final answer");
-    expect(injected.systemPrompt).toContain("Before yielding, distill verified, reusable project lessons from this run");
-    expect(injected.systemPrompt).toContain("for the harness to persist, not the parent-facing result");
+    expect(injected.systemPrompt).toContain("verified procedures useful to a future independently specified task");
+    expect(injected.systemPrompt).toContain("JIT is prior knowledge, not current permission or task state");
+    expect(injected.systemPrompt).toContain("pending work, current answers/progress, one-off authority");
+    expect(injected.systemPrompt).toContain("blocked yield ends this single-pass delegation");
     expect(injected.systemPrompt).toContain("Use [] if none");
     expect(injected.systemPrompt).not.toContain(PARENT_CAPSULE_PROMPT);
     expect(injected.systemPrompt).not.toContain("sole final tool call");

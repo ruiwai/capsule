@@ -41,6 +41,31 @@ describe("project-local Capsule storage", () => {
     await expect(storage.loadJit()).rejects.toThrow(SyntaxError);
   });
 
+  it("rejects unsupported versions and malformed entries instead of making them overwriteable emptiness", async () => {
+    await fs.mkdir(storage.stateRoot, { recursive: true });
+    for (const value of [
+      { version: 99, entries: [] },
+      { version: 1, entries: [{ topic: "../instruction", content: 7, raw_history: "relative", updatedAt: "today" }] },
+      { version: 2, entries: [{ ...entries[0], context: { fingerprint: "wrong" } }] },
+    ]) {
+      await fs.writeFile(join(storage.stateRoot, "jit.json"), JSON.stringify(value));
+      await expect(storage.loadJit()).rejects.toThrow(/invalid_jit_store/);
+    }
+  });
+
+  it("loads v1 non-destructively as unknown freshness and preserves it during v2 migration", async () => {
+    await fs.mkdir(storage.stateRoot, { recursive: true });
+    await fs.writeFile(join(storage.stateRoot, "jit.json"), JSON.stringify({ version: 1, entries }));
+    const legacy = await storage.loadJit();
+    expect(legacy).toEqual(entries);
+    expect(legacy[0]).not.toHaveProperty("context");
+    await storage.publish(legacy, new AbortController().signal);
+    expect(JSON.parse(await fs.readFile(join(storage.stateRoot, "jit.json"), "utf8"))).toMatchObject({
+      version: 2, entries: [{ ...entries[0], context: null }],
+    });
+    expect(await storage.loadJit()).toEqual(entries);
+  });
+
   it("retains unique absolute transcripts and notes with private permissions", async () => {
     const records = [{ type: "message", text: "line one\nline two" }];
     const first = await storage.retain(records);

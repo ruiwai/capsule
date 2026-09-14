@@ -6,7 +6,7 @@ export const MAX_TIMER_MS = 2_147_483_647;
 
 export const DelegateCapsuleParameters = Type.Object({
   capsule: Type.String({ minLength: 1, maxLength: 32_000, pattern: nonBlank,
-    description: "Self-contained assignment: goal, cwd/inputs, scope, allowed actions, acceptance checks, stop conditions, and report/artifact requirements. Include needed context; the worker cannot see the parent conversation." }),
+    description: "Self-contained assignment: goal/result, context, scope, and acceptance checks. Explain material constraints, distinguish fixed decisions/local choices, and name blocker observations. Flash cannot see the parent conversation." }),
   output_example: Type.String({ minLength: 1, pattern: nonBlank,
     description: "Result-format example, passed verbatim to Flash; not a schema or an answer to copy. Show required evidence and artifact fields." }),
   timeout_s: Type.Optional(Type.Number({ exclusiveMinimum: 0,

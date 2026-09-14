@@ -1,6 +1,7 @@
 import type { CapsuleBackend, WorkerTelemetry } from "./worker.js";
 import { CapsuleStorage } from "./storage.js";
 import { MAX_TIMER_MS, validateDelegate, validateYield, type DelegateCapsuleArgs, type DelegateCapsuleResult } from "./contracts.js";
+import { observeProjectContext, selectApplicableJit } from "./jit.js";
 
 export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; timeoutMultiplier?: number; cleanupMs?: number; onTelemetry?: (telemetry: WorkerTelemetry) => void };
 
@@ -26,8 +27,11 @@ export class CapsuleService {
     try {
       const old = await this.storage.loadJit();
       if (signal.aborted) return { cleanupConfirmed };
-      const selected = [...old].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8);
-      const outcome = await this.backend.run({ capsule: args.capsule, outputExample: args.output_example, jit: selected,
+      const initialContext = await observeProjectContext(this.options.projectRoot);
+      if (signal.aborted) return { cleanupConfirmed };
+      const selected = selectApplicableJit(args.capsule, old, initialContext);
+      const outcome = await this.backend.run({ capsule: args.capsule, outputExample: args.output_example,
+        jit: selected.map(({ topic, content, raw_history }) => ({ topic, content, raw_history })),
         signal, cleanupMs: this.options.cleanupMs ?? DEFAULT_CLEANUP_MS, onTelemetry: this.options.onTelemetry });
       cleanupConfirmed = outcome.cleanupConfirmed !== false;
       // Retain observations during bounded cleanup too, but never publish a late handoff/JIT.
@@ -51,11 +55,17 @@ export class CapsuleService {
       }
       if (signal.aborted) return { cleanupConfirmed };
       if (outcome.yield.JITed_history.length) {
-        const replacements = new Map(old.map(x => [x.topic, x]));
-        for (const entry of outcome.yield.JITed_history)
-          replacements.set(entry.topic, { ...entry, raw_history: state.transcript, updatedAt: new Date().toISOString() });
-        try { await this.storage.publish([...replacements.values()], signal); }
-        catch (error) { return { cleanupConfirmed, value: { status: "error", notes: `JIT publication failed after transcript retention. Prior knowledge remains authoritative; fix storage before retrying: ${String(error)}`, raw_history: state.transcript } }; }
+        const finalContext = await observeProjectContext(this.options.projectRoot);
+        if (signal.aborted) return { cleanupConfirmed };
+        // If guarded context moved (or is unknown), the transcript retains the proposed lesson,
+        // but old knowledge remains authoritative rather than receiving unsupported freshness.
+        if (initialContext && finalContext && initialContext.fingerprint === finalContext.fingerprint) {
+          const replacements = new Map(old.map(x => [x.topic, x]));
+          for (const entry of outcome.yield.JITed_history)
+            replacements.set(entry.topic, { ...entry, raw_history: state.transcript, updatedAt: new Date().toISOString(), context: finalContext });
+          try { await this.storage.publish([...replacements.values()], signal); }
+          catch (error) { return { cleanupConfirmed, value: { status: "error", notes: `JIT publication failed after transcript retention. Prior knowledge remains authoritative; fix storage before retrying: ${String(error)}`, raw_history: state.transcript } }; }
+        }
       }
       if (signal.aborted) return { cleanupConfirmed };
       if (outcome.yield.reason === "blocked") return { cleanupConfirmed,

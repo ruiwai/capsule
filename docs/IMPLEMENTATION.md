@@ -9,8 +9,8 @@ preserved.** Capsule is the production Pi SDK adapter.
 | --- | --- |
 | Fixed contracts | `delegate_capsule({capsule, output_example, timeout_s?})`; completed/blocked `yield` with arbitrary JSON result and bounded JIT fields. Old report/reply/yielded, needs_decision, and public cancelled envelopes are rejected. |
 | Parent projection | Completion passes `result` unchanged and returns retained transcript plus optional notes paths. Blocked/runtime failures use mandatory inline notes and never fabricate a result. |
-| Context | Flash receives selected project JIT, the current capsule, and unchanged example guidance. The parent receives no JIT, successful note text, transcript content, or worker termination flag. |
-| Storage | Searchable UTF-8 transcripts and supplementary notes are retained under the project-scoped state root. Topic updates use atomic project-local replacement with transcript provenance. |
+| Context | Flash receives up to three applicable, fresh project lessons within an 8,000-character budget, the unchanged current capsule, and unchanged example guidance. The parent receives no JIT, successful note text, transcript content, or worker termination flag. |
+| Storage | Searchable UTF-8 transcripts and supplementary notes are retained under the project-scoped state root. Validated v2 topic updates use atomic replacement with transcript provenance and bounded context metadata; v1 loads as unknown freshness and migrates non-destructively. Corrupt/unsupported stores fail closed. |
 | Watchdog | One per-call deadline starts before JIT loading/backend setup and remains active through normal persistence. Precedence is `timeout_s` > `CAPSULE_FLASH_TIMEOUT_MS` > 300,000 ms; `high`/`xhigh` reasoning then applies a 2x/3x runtime multiplier, respectively, capped at Node's timer limit. The multiplier is not added to model instructions or UI call summaries. Cleanup has a separate 5,000 ms allowance. |
 | Termination | Expiry selects timeout once, aborts the owned Pi session, bounds abort/idleness/retention waits, fences late handoff/JIT processing, and retains workspace ownership when cleanup is unconfirmed. User interruption follows the internal abort path rather than returning a public cancellation status. |
 
@@ -20,6 +20,19 @@ SDK startup that ignores cancellation can only be marked unconfirmed. In that
 case the service deliberately prevents a subsequent delegation from overlapping
 the unresolved owner. A late-created SDK session is immediately asked to abort
 and disposed.
+
+JIT ranking is deterministic lexical overlap between the capsule and lesson
+topic/content; generic terms are ignored and recency is only a tie-breaker.
+Freshness fingerprints canonical identity, platform, and 17 fixed common root
+manifest/lock/config files with a 1 MB read budget. It observes additions and
+deletions but not changes elsewhere, and cannot certify semantic validity.
+Mismatch or unknown observations suppress injection without blocking the task.
+Mid-episode guard changes retain proposed knowledge only in episode evidence.
+
+Delegations remain fresh, single-pass sessions. Blocked notes and unfinished
+state return inline and remain in the transcript; they are not checkpoints or
+future instructions. Only reusable procedures may be JIT, and no resume,
+continuation, parent-query loop, or second inference is introduced.
 
 ## Automated coverage
 

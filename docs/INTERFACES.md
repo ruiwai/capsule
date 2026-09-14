@@ -28,8 +28,10 @@ once through normal tool-result context; no polling or duplicate message.
 }
 ```
 
-`capsule` is self-contained plain text or Markdown. It carries the objective,
-relevant facts and decisions, constraints, local discretion, and yield gate.
+`capsule` is self-contained plain text or Markdown. It carries the objective and
+needed result, relevant facts and decisions, material constraints and why they
+matter, local discretion, and observations that should block rather than widen
+scope. Rationale is encouraged for important boundaries, not every trivial step.
 It is not a pre-enumerated command list or a permission ledger.
 
 `output_example` is a required nonblank **string of prompt guidance**. Preserve
@@ -190,6 +192,13 @@ Publish only from a valid, timely, settled yield with retained provenance. A
 blocked yield may contain a genuine verified lesson; its task remains blocked.
 Timeout, runtime error, interrupted, malformed, or late yields publish no JIT.
 The parent agent can inspect/correct knowledge deliberately; it is not automatically shown.
+Selection uses meaningful lexical overlap with the current capsule only, capped
+at three intact entries and 8,000 topic/content characters. Recency only breaks
+applicability ties; unmatched capacity is left empty. Stored context fingerprints
+cover canonical project identity, platform, and a bounded root manifest/lock/
+configuration guard set. Matching is eligibility, not proof; stale, unknown,
+and legacy-v1 lessons remain inspectable but are not injected. Unguarded source
+or environment changes are not detected.
 
 ## Watchdog and terminal handling
 

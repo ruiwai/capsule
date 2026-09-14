@@ -7,7 +7,13 @@ context-stack example; [INTERFACES.md](INTERFACES.md) supplies the latest payloa
 ## 1. Select reusable knowledge
 
 Start Flash with base instructions and relevant project/tool lessons, including
-provenance paths. Do not load every saved lesson or raw log. Keep the common
+provenance paths. A deterministic lexical selector compares meaningful capsule
+terms (not `output_example`) with lesson topics/content. Applicability outranks
+recency, which only breaks ties; no lexical match means no JIT. At most three
+complete lessons and 8,000 topic/content characters are injected, so guards and
+verification are omitted as a whole rather than truncated. This heuristic can
+miss semantic relationships, and Flash must still check stated applicability.
+Do not load every saved lesson or raw log. Keep the common
 executable path, minimum guard, and decisive verification visible; retrieve
 uncommon branches and history only when actual evidence calls for them.
 
@@ -77,7 +83,9 @@ Never publish JIT from a timeout, interrupted run, runtime error, malformed
 handoff, or late yield. Preserve earlier knowledge on storage failure.
 
 A lesson is the minimal reusable procedure, not the whole transcript. Keep
-applicability, safety guard, and verification. Do not turn expired task permission
+brief `Use when`, `Do`, `Verify`, and `Recheck when` guidance where useful.
+Pending tasks, execution progress, current answers, and one-off authorization
+remain in terminal notes and the transcript, never automatic JIT. Do not turn expired task permission
 into a standing grant, copy stale absolute environment paths as universal advice,
 or rewrite global skills without authorization. The parent agent can inspect knowledge
 on demand or ask Flash to correct a topic in a later capsule.
@@ -96,6 +104,29 @@ The old capsule, old output example, successful notes, repeated errors, and raw
 transcript do not enter by default. Reclamation removes them from model input,
 not from the saved archive. It never resets the parent agent's conversation, undoes work,
 or leaves orphaned tool calls/results in a reconstructed message list.
+
+Each delegation is single-pass: one self-contained assignment may make many
+dependent tool calls, then ends in one terminal yield or runtime failure. A
+blocked handoff ends that delegation; it does not pause for a reply. A later
+delegation is a new complete capsule, with no resume token, checkpoint manager,
+automatic continuation, or extra model invocation. A blocked episode may still
+publish a genuinely reusable verified procedure when freshness is supportable.
+
+## Guarded freshness
+
+At episode start and before publishing a lesson, Capsule fingerprints canonical
+project identity, platform, and a fixed list of common root manifests, locks,
+and configuration files. Missing files are represented, so additions/deletions
+change the fingerprint. Reads are capped at 1 MB per file and 1 MB total. It
+does not scan source trees, dependencies, transcripts, or paths from lesson
+prose, and makes no package-manager, version, model, network, or search call.
+Matching metadata only makes a lesson eligible; mismatch is stale and an
+unreadable/oversized observation is unknown. Stale, unknown, and v1 legacy
+lessons stay stored but are not automatically injected. Changes outside the
+guard list remain invisible, so freshness is conservative context evidence,
+not per-lesson certification. If guarded context changes during an episode,
+proposed JIT remains in retained episode evidence and prior stored knowledge is
+not replaced; there is no revalidation pass.
 
 ## 6. Timeout is not a cooperative yield
 

@@ -4,10 +4,10 @@ import type { DelegateCapsuleArgs } from "./contracts.js";
 export const PARENT_CAPSULE_PROMPT = `# Saving input tokens
 Avoid unnecessary parent input rounds that repeatedly process the full context:
 1) Batch independent tool calls in a single response when supported.
-2) For bounded tasks whose tool calls depend on earlier results and cannot run in one response, use the delegate_capsule tool.
+2) When tool calls depend on earlier results and cannot run in one response, use the delegate_capsule tool.
 
 Caveats:
-Delegate evidence collection or already-decided changes; keep diagnosis, interpretation, design, and planning with the parent. Define scope and acceptance criteria first. Review evidence: completed does not mean checks passed.
+Delegate evidence collection or already-decided changes; keep diagnosis, interpretation, design, and planning with the parent. Define scope and acceptance criteria first. Give the goal/result, reasons for material constraints, local choices, and blocker evidence. Review evidence: completed does not mean checks passed.
 Wait when a call needs an earlier result; avoid conflicting reads/writes and shared-state changes. Keep delegate_capsule calls sequential within a workspace.`;
 
 /** Validated reference examples; only the first is included in the tool description. */
@@ -36,7 +36,7 @@ export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArg
     output_example: '{"range_utc":"14:00–14:10","counts":{"E_TIMEOUT":3},"excerpts":"artifacts/api-errors.txt","source":"logs/api-2026-09-13.log"}',
   } },
   { task: "Run an existing test/workflow", args: {
-    capsule: "Read package.json and tests/auth.test.ts. Run npm test -- tests/auth.test.ts once from the workspace root using installed dependencies. No source/test edits, installs, snapshot updates, or retries. Save stdout/stderr to artifacts/auth-test.log. Report command, exit code, test counts, and failing test names. A test failure is a completed negative result; missing tooling is a blocker.",
+    capsule: "Read package.json and tests/auth.test.ts. Run npm test -- tests/auth.test.ts once from the workspace root using installed dependencies. Do not edit, install, update snapshots, or retry: this run must remain comparable with the reviewed tree. You may adjust harmless output capture; a required dependency or source change is a blocker. Save stdout/stderr to artifacts/auth-test.log. Report command, exit code, test counts, and failing test names. A test failure is a completed negative result; missing tooling is a blocker.",
     output_example: '{"command":"npm test -- tests/auth.test.ts","exit":1,"passed":4,"failed":1,"failures":["rejects expired token"],"log":"artifacts/auth-test.log"}',
     timeout_s: 120,
   } },
@@ -51,12 +51,12 @@ export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArg
   } },
 ];
 
-export const DELEGATE_CAPSULE_DESCRIPTION = `Run one foreground Flash worker in the current workspace. Return its result or blocker and retained history/notes paths when available. Scope is guidance, not a sandbox.
+export const DELEGATE_CAPSULE_DESCRIPTION = `Run one foreground Flash worker; return its result/blocker and retained paths. Guidance is not a sandbox.
 Example (adapt paths and requirements; output is illustrative):
 ${JSON.stringify(DELEGATION_EXAMPLES[0]!.args)}`;
 
 export const WORKER_CAPSULE_PROMPT = `# Capsule worker
-Execute the capsule within its file scope, allowed changes, requirements, and stop conditions. If blocked by missing prerequisites, authority, or substantive judgment, report observations and what is needed; do not expand scope or guess a fix.
+Execute the current capsule and its rationale, subject to system/runtime rules. Its fixed constraints override advisory JIT: remembered workarounds are not permission to install, edit, retry, resume old work, or change the acceptance boundary. If evidence contradicts a fixed assumption, report blocked with observations and what is needed; do not invent a new objective. Preserve established negative answers rather than changing checks to get green.
 Report observed results, commands/exit codes, changed files, and requested artifact paths. Distinguish failed checks from checks not run.
 Return your report through the yield tool, not a plain-text final answer; without yield the parent receives no valid handoff.
-Before yielding, distill verified, reusable project lessons from this run into JITed_history for the harness to persist, not the parent-facing result. Use [] if none. Exclude task-specific answers, secrets, raw logs, and transcript/session paths from lessons. Do not put transcript contents or transcript/session paths in notes; the harness supplies provenance and retained handoff paths.`;
+Before yielding, distill only verified procedures useful to a future independently specified task into JITed_history; JIT is prior knowledge, not current permission or task state. Briefly write “Use when:”, “Do:”, “Verify:”, and “Recheck when:” guidance where useful. Use [] if none. Keep pending work, current answers/progress, one-off authority, secrets, logs, and transcript/session paths in terminal notes/history instead. A blocked yield ends this single-pass delegation; it is not paused or resumed. The harness supplies provenance and retained paths.`;
