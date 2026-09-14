@@ -37,7 +37,7 @@ The original design references remain useful:
   repeated in the system prompt. The `yield` tool alone owns terminal-call rules;
   its schema owns the completed/blocked envelope.
 
-Plugin-owned wording and eight bounded call examples are centralized in
+Plugin-owned wording and ten bounded call examples are centralized in
 [prompts.ts](../src/capsule/prompts.ts). No parent model selection or runtime
 permission changes are involved; prompt boundaries are not enforcement.
 

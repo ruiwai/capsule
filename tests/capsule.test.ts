@@ -39,12 +39,24 @@ function settled(marker: string, packet = handoff): BackendOutcome {
 }
 
 describe("refined Capsule contracts", () => {
-  it("keeps all eight task examples valid, with diverse result guidance", () => {
-    expect(DELEGATION_EXAMPLES).toHaveLength(8);
+  it("keeps the bounded task examples valid, specific, and diverse", () => {
+    expect(DELEGATION_EXAMPLES).toHaveLength(10);
     for (const { args } of DELEGATION_EXAMPLES) {
       expect(() => validateDelegate(args)).not.toThrow();
       expect(args.capsule).toMatch(/Report|report/);
     }
+    expect(DELEGATION_EXAMPLES.map(x => x.task)).toEqual(expect.arrayContaining([
+      "Target code search (read-only)",
+      "Environment install (locked, project-local)",
+      "Requirement check and smoke (no fixes)",
+      "Fix a specified Cargo error (not troubleshooting)",
+      "Explore a specified log (extract, do not diagnose)",
+      "Run an existing test/workflow",
+      "Git command (read-only)",
+      "Target literature search (retrieve, do not evaluate)",
+      "Targeted needle-in-a-haystack aggregation",
+      "Coarse text processing and extraction",
+    ]));
     expect(DELEGATION_EXAMPLES.some(x => x.args.timeout_s === undefined)).toBe(true);
     expect(DELEGATION_EXAMPLES.some(x => x.args.output_example.startsWith("{"))).toBe(true);
     expect(DELEGATION_EXAMPLES.some(x => x.args.output_example.startsWith("|"))).toBe(true);
@@ -331,21 +343,18 @@ describe("parent/child tool separation", () => {
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
-    expect(injected.systemPrompt).toContain("Batch independent tool calls in a single response");
+    expect(injected.systemPrompt).toContain("Batch independent tool calls when possible");
     expect(injected.systemPrompt).toContain("# Saving input tokens");
-    expect(injected.systemPrompt).toContain("Avoid unnecessary parent input rounds that repeatedly process the full context");
-    expect(injected.systemPrompt).toContain("tool calls depend on earlier results and cannot run in one response");
-    expect(injected.systemPrompt).toContain("use the delegate_capsule tool");
-    const caveats = PARENT_CAPSULE_PROMPT.split("\n\nCaveats:\n")[1];
-    expect(caveats).toContain("Delegate evidence collection or already-decided changes");
-    expect(caveats).toContain("keep diagnosis, interpretation, design, and planning with the parent");
-    expect(caveats).toContain("Define scope and acceptance criteria first");
-    expect(caveats).toContain("Review evidence: completed does not mean checks passed");
-    expect(caveats).toContain("Wait when a call needs an earlier result");
-    expect(caveats).toContain("avoid conflicting reads/writes and shared-state changes");
-    expect(caveats).toContain("Keep delegate_capsule calls sequential within a workspace");
-    expect(injected.systemPrompt).toContain("Wait when a call needs an earlier result");
-    expect(injected.systemPrompt).toContain("Keep delegate_capsule calls sequential within a workspace");
+    expect(injected.systemPrompt).toContain("Use delegate_capsule for a specific, bounded execution or evidence task");
+    expect(injected.systemPrompt).toContain("Delegate: targeted code/literature search");
+    expect(injected.systemPrompt).toContain("needle-in-a-haystack aggregation");
+    expect(injected.systemPrompt).toContain("Do not delegate: architecture decisions");
+    for (const work of ["architecture decisions", "bug troubleshooting", "data interpretation", "large refactors",
+      "literature integration", "hypothesis generation", "evidence evaluation", "trade-offs",
+      "complex failure-mode identification", "roadmaps or plans"])
+      expect(injected.systemPrompt).toContain(work);
+    expect(injected.systemPrompt).toContain("completed can be negative");
+    expect(injected.systemPrompt).toContain("Do not overlap delegate_capsule calls");
     expect(injected.systemPrompt).not.toContain(WORKER_CAPSULE_PROMPT);
     expect(tools[0].description).not.toContain(PARENT_CAPSULE_PROMPT);
     expect(tools[0].description.split(JSON.stringify(DELEGATION_EXAMPLES[0]!.args))).toHaveLength(2);

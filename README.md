@@ -35,8 +35,13 @@ target project's `.pi/settings.json`, preserving existing settings.
 
 ## Use
 
-Ask the parent agent to delegate a bounded task, such as a search, test run, or
-log extraction. Keep diagnosis, architecture, and planning with the parent.
+Ask the parent agent to delegate a specific, bounded execution or evidence task:
+targeted code or literature search, project-local environment setup, requirement
+checks and smokes, an already-decided fix, scoped log extraction, an existing
+test/workflow, safe Git commands, narrow aggregation, or coarse text extraction.
+Keep architecture decisions, troubleshooting, interpretation, large refactors,
+literature synthesis, hypothesis/evidence evaluation, trade-offs, complex
+failure analysis, and roadmaps or plans with the parent.
 
 The parent calls `delegate_capsule` with a self-contained assignment, an example
 of the desired answer, and an optional deadline:

@@ -2,19 +2,19 @@ import type { DelegateCapsuleArgs } from "./contracts.js";
 
 /** Parent policy belongs in the system prompt; invocation details belong to the tool. */
 export const PARENT_CAPSULE_PROMPT = `# Saving input tokens
-Avoid unnecessary parent input rounds that repeatedly process the full context:
-1) Batch independent tool calls in a single response when supported.
-2) When tool calls depend on earlier results and cannot run in one response, use the delegate_capsule tool.
+Batch independent tool calls when possible. Use delegate_capsule for a specific, bounded execution or evidence task that needs no parent judgment.
 
-Caveats:
-Delegate evidence collection or already-decided changes; keep diagnosis, interpretation, design, and planning with the parent. Define scope and acceptance criteria first. Give the goal/result, reasons for material constraints, local choices, and blocker evidence. Review evidence: completed does not mean checks passed.
-Wait when a call needs an earlier result; avoid conflicting reads/writes and shared-state changes. Keep delegate_capsule calls sequential within a workspace.`;
+Delegate: targeted code/literature search; project-local environment install; requirement checks/smokes; an already-decided edit such as a specified Cargo fix; scoped log exploration; an existing test/workflow; safe Git commands; needle-in-a-haystack aggregation; coarse text extraction.
+
+Do not delegate: architecture decisions; bug troubleshooting; data interpretation; large refactors; literature integration; hypothesis generation; evidence evaluation; trade-offs; complex failure-mode identification; roadmaps or plans.
+
+Review the evidence: completed can be negative and does not mean checks passed. Do not overlap delegate_capsule calls or conflicting workspace/shared-state operations.`;
 
 /** Validated reference examples; only the first is included in the tool description. */
 export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArgs }> = [
   { task: "Target code search (read-only)", args: {
-    capsule: "In this workspace, search src/auth/ and tests/auth/ for refreshToken definitions and direct callers. Do not edit. Report file:line, symbol, and one-line excerpt for each match; report no matches explicitly. Stop at these directories; do not diagnose auth bugs.",
-    output_example: "src/auth/session.ts:42 | refreshToken | export async function refreshToken(...). Searched: src/auth/, tests/auth/. Missing paths: none.",
+    capsule: "Search only src/auth/ and tests/auth/ for refreshToken definitions/callers. Do not edit. Report file:line, symbol, one-line excerpt, searched/missing paths, and zero matches. Stop after inventory; no diagnosis.",
+    output_example: "src/auth/session.ts:42 | refreshToken | export async function refreshToken(...). Matches: 1; missing: none.",
   } },
   { task: "Environment install (locked, project-local)", args: {
     capsule: "Read pyproject.toml and uv.lock in the workspace root. Run uv sync --frozen into .venv, then uv run --frozen python -c 'import capsule_fixture'. Network package downloads and .venv writes are allowed; no global installs or manifest/lock edits. Save command output to artifacts/env-install.log. Report versions, exit codes, and import outcome. If uv is absent or the lock is incompatible, stop and report the blocker.",
@@ -49,10 +49,18 @@ export const DELEGATION_EXAMPLES: Array<{ task: string; args: DelegateCapsuleArg
     output_example: "Found: 3 title matches. Bibliography: artifacts/speculative-decoding.md. Query: ti:\"speculative decoding\", 2020–2024. Sources: arXiv. Missing fields: DOI for 2 papers.",
     timeout_s: 180,
   } },
+  { task: "Targeted needle-in-a-haystack aggregation", args: {
+    capsule: "Search only packages/*/package.json and services/*/package.json for exact dependencies on lodash. Exclude node_modules and generated manifests; do not edit. Save one CSV row per match (manifest, dependency section, declared range) to artifacts/lodash-dependencies.csv, sorted by manifest. Report files searched, missing globs, match count, and artifact path; zero matches is valid. Stop after aggregation and do not assess upgrade risk.",
+    output_example: '{"searched":84,"missing_globs":[],"matches":6,"artifact":"artifacts/lodash-dependencies.csv"}',
+  } },
+  { task: "Coarse text processing and extraction", args: {
+    capsule: "Read docs/rfcs/*.md only. Extract each H1/H2 heading and every line containing the exact words MUST or MUST NOT; preserve source text and file:line, deduplicate exact repeated requirement lines, and write artifacts/rfc-requirements.tsv. Do not summarize, interpret, or edit source files. Report files read, heading and requirement counts, skipped unreadable files, and artifact path; stop if the input glob matches no files.",
+    output_example: "Files read: 12; headings: 47; requirements: 19; skipped: none; artifact: artifacts/rfc-requirements.tsv.",
+  } },
 ];
 
-export const DELEGATE_CAPSULE_DESCRIPTION = `Run one foreground Flash worker; return its result/blocker and retained paths. Guidance is not a sandbox.
-Example (adapt paths and requirements; output is illustrative):
+export const DELEGATE_CAPSULE_DESCRIPTION = `Run one foreground Flash worker. Returns its result/blocker and retained paths. Not a sandbox.
+Example—adapt paths; values are illustrative:
 ${JSON.stringify(DELEGATION_EXAMPLES[0]!.args)}`;
 
 export const WORKER_CAPSULE_PROMPT = `# Capsule worker
