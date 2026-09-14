@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DefaultResourceLoader, getAgentDir } from "@earendil-works/pi-coding-agent";
 import capsuleExtension from "../src/extension/index.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
-import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
+import { DelegateCapsuleParameters, validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
 import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, HIGH_THINKING_TIMEOUT_MULTIPLIER, PiSdkBackend, XHIGH_THINKING_TIMEOUT_MULTIPLIER, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel, thinkingTimeoutMultiplier } from "../src/extension/pi-backend.js";
 import type { BackendOutcome, CapsuleBackend } from "../src/capsule/worker.js";
@@ -60,6 +60,8 @@ describe("refined Capsule contracts", () => {
     expect(DELEGATION_EXAMPLES.some(x => x.args.timeout_s === undefined)).toBe(true);
     expect(DELEGATION_EXAMPLES.some(x => x.args.output_example.startsWith("{"))).toBe(true);
     expect(DELEGATION_EXAMPLES.some(x => x.args.output_example.startsWith("|"))).toBe(true);
+    expect((DelegateCapsuleParameters.properties.timeout_s as unknown as { description: string }).description)
+      .toContain("For a complex capsule, explicitly set a larger value");
   });
   it("accepts text guidance and arbitrary completed JSON without checking its shape", () => {
     for (const output_example of ['{"ok":true}', "A short sentence in past tense."])

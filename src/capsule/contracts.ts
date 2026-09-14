@@ -10,7 +10,7 @@ export const DelegateCapsuleParameters = Type.Object({
   output_example: Type.String({ minLength: 1, pattern: nonBlank,
     description: "Illustrative result format, passed verbatim to Flash; not a schema or answer to copy. Show required evidence, status, and artifact fields." }),
   timeout_s: Type.Optional(Type.Number({ exclusiveMinimum: 0,
-    description: "Deadline in seconds, including startup and result preparation. Default: configured timeout (normally 300s)." })),
+    description: "Deadline in seconds (default normally 300). For a complex capsule, explicitly set a larger value." })),
 }, { additionalProperties: false });
 
 const JitEntryParameters = Type.Object({
