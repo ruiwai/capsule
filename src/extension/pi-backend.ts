@@ -45,6 +45,7 @@ export function createWorkerExtension(
       name: "yield", label: "Yield to the parent agent",
       description: "End with yield as the sole final tool call; do not continue. Use completed + result for an established answer, including failed checks; blocked + notes for missing prerequisites or required parent input. Always include JITed_history.",
       parameters: YieldParameters,
+      executionMode: "sequential",
       async execute(_id, args) {
         validateYield(args);
         if (state.packet) { state.duplicate = true; throw Error("duplicate terminal yield"); }

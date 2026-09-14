@@ -3,9 +3,13 @@ import { constants } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
+import { Type } from "typebox";
 import { DefaultResourceLoader, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { agentLoop } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-agent-core/dist/index.js";
+import { AssistantMessageEventStream } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/utils/event-stream.js";
 import capsuleExtension from "../src/extension/index.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { DelegateCapsuleParameters, validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
@@ -15,6 +19,7 @@ import type { BackendOutcome, CapsuleBackend } from "../src/capsule/worker.js";
 import { CapsuleStorage } from "../src/capsule/storage.js";
 
 const lesson = "Applies while lock-v1 is current. Run the focused check; guard against changing the lock. Verify the decisive assertion.";
+const execFileAsync = promisify(execFile);
 const handoff: YieldArgs = { reason: "completed", result: { ok: false }, notes: "SUPPLEMENT_ONLY_991",
   JITed_history: [{ topic: "project-tests", content: lesson }] };
 type BackendInput = Parameters<CapsuleBackend["run"]>[0];
@@ -345,7 +350,9 @@ describe("parent/child tool separation", () => {
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
-    expect(injected.systemPrompt).toContain("Batch independent tool calls when possible");
+    expect(injected.systemPrompt).toContain("All tool calls are blocking and execute sequentially");
+    expect(injected.systemPrompt).toContain("apply_patch followed by bash_exec to test it");
+    expect(injected.systemPrompt).toContain("intermediate result requires a decision or branch");
     expect(injected.systemPrompt).toContain("# Saving input tokens");
     expect(injected.systemPrompt).toContain("Use delegate_capsule for a specific, bounded execution or evidence task");
     expect(injected.systemPrompt).toContain("Delegate: targeted code/literature search");
@@ -359,13 +366,60 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("Do not overlap delegate_capsule calls");
     expect(injected.systemPrompt).not.toContain(WORKER_CAPSULE_PROMPT);
     expect(tools[0].description).not.toContain(PARENT_CAPSULE_PROMPT);
+    expect(tools[0].executionMode).toBe("sequential");
     expect(tools[0].description.split(JSON.stringify(DELEGATION_EXAMPLES[0]!.args))).toHaveLength(2);
     for (const { args } of DELEGATION_EXAMPLES.slice(1))
       expect(tools[0].description).not.toContain(JSON.stringify(args));
     expect(PARENT_CAPSULE_PROMPT.length + tools[0].description.length
-      + JSON.stringify(tools[0].parameters).length).toBeLessThan(2200);
+      + JSON.stringify(tools[0].parameters).length).toBeLessThan(2500);
     expect(injected.systemPrompt).not.toContain("JITed_history");
     expect(tools[0].description).not.toContain("JITed_history");
+  });
+  it("blocks a later sibling until a bash_exec sleep finishes", async () => {
+    const registered: any[] = [];
+    capsuleExtension({ registerTool: (tool: any) => registered.push(tool), on() {} } as any);
+    const order: string[] = [];
+    const bashTool = {
+      name: "bash_exec", label: "Bash sleep", description: "Test-only sleep", parameters: Type.Object({}),
+      async execute() {
+        order.push("bash:start");
+        await execFileAsync("bash", ["-c", "sleep 5"]);
+        order.push("bash:end");
+        return { content: [{ type: "text" as const, text: "slept" }], details: {}, terminate: true };
+      },
+    };
+    const delegateTool = {
+      ...registered[0],
+      async execute() {
+        order.push("delegate:start");
+        return { content: [{ type: "text" as const, text: "delegated" }], details: {}, terminate: true };
+      },
+    };
+    const assistant: any = {
+      role: "assistant", api: "test", provider: "test", model: "test", stopReason: "toolUse", timestamp: Date.now(),
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      content: [
+        { type: "toolCall", id: "sleep-1", name: "bash_exec", arguments: {} },
+        { type: "toolCall", id: "delegate-1", name: "delegate_capsule", arguments: { capsule: "x", output_example: "x" } },
+      ],
+    };
+    const streamFn = () => {
+      const stream = new AssistantMessageEventStream();
+      stream.push({ type: "start", partial: assistant });
+      stream.push({ type: "done", reason: "toolUse", message: assistant });
+      return stream;
+    };
+    const events = agentLoop(
+      [{ role: "user", content: "run both", timestamp: Date.now() }],
+      { systemPrompt: "test", messages: [], tools: [bashTool, delegateTool] },
+      { model: {} as any, convertToLlm: messages => messages as any, toolExecution: "parallel" },
+      undefined,
+      streamFn as any,
+    );
+    for await (const _event of events) { /* drain the real scheduler */ }
+    expect(delegateTool.executionMode).toBe("sequential");
+    expect(order).toEqual(["bash:start", "bash:end", "delegate:start"]);
   });
   it("injects exact example/JIT and exposes only terminating yield in Flash", async () => {
     const tools: any[] = [], hooks = new Map<string, any>(), state = { hooksRan: false, duplicate: false };
@@ -385,6 +439,7 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).not.toContain("sole final tool call");
     expect(tools[0].description).toContain("sole final tool call");
     expect(tools.map(x => x.name)).toEqual(["yield"]);
+    expect(tools[0].executionMode).toBe("sequential");
     expect((await tools[0].execute("yield-1", handoff)).terminate).toBe(true);
     await expect(tools[0].execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
   });

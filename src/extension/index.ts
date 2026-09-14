@@ -44,6 +44,7 @@ export default function capsuleExtension(pi: ExtensionAPI) {
     name: "delegate_capsule", label: "Delegate capsule to Flash",
     description: DELEGATE_CAPSULE_DESCRIPTION,
     parameters: DelegateCapsuleParameters,
+    executionMode: "sequential",
     async execute(_id, args, signal, _update, ctx) {
       showFlashStatus(ctx, "starting");
       workerTelemetry = undefined;

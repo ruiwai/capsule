@@ -2,7 +2,9 @@ import type { DelegateCapsuleArgs } from "./contracts.js";
 
 /** Parent policy belongs in the system prompt; invocation details belong to the tool. */
 export const PARENT_CAPSULE_PROMPT = `# Saving input tokens
-Batch independent tool calls when possible. Use delegate_capsule for a specific, bounded execution or evidence task that needs no parent judgment.
+All tool calls are blocking and execute sequentially. Pack multiple dependent tool calls with no intermediate decision or branch into one response—for example, apply_patch followed by bash_exec to test it. When an intermediate result requires a decision or branch, send the bounded sequence to delegate_capsule instead.
+
+Use delegate_capsule for a specific, bounded execution or evidence task that needs no parent judgment.
 
 Delegate: targeted code/literature search; project-local environment install; requirement checks/smokes; an already-decided edit such as a specified Cargo fix; scoped log exploration; an existing test/workflow; safe Git commands; needle-in-a-haystack aggregation; coarse text extraction.
 
