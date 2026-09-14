@@ -10,6 +10,11 @@ export const DEFAULT_FLASH_MODEL = "openai-codex/gpt-5.6-luna";
 export const FLASH_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
 export type FlashThinkingLevel = typeof FLASH_THINKING_LEVELS[number];
 export const DEFAULT_FLASH_THINKING_LEVEL: FlashThinkingLevel = "off";
+// Keep this runtime allowance out of the worker/parent instructions: high-effort
+// reasoning gets more wall-clock time, but the caller should still specify the
+// task's nominal deadline. The public docs describe the effective deadline.
+export const HIGH_THINKING_TIMEOUT_MULTIPLIER = 2;
+export const XHIGH_THINKING_TIMEOUT_MULTIPLIER = 3;
 export type ParentWorkerContext = { systemPrompt: string; extensionPaths: string[]; tools: string[] };
 export type PiBackendOptions = {
   cwd: string; stateDir: string; model: PiModel; tools: string[];
@@ -175,6 +180,11 @@ export function resolveConfiguredThinkingLevel(settings: unknown, environmentVal
     throw Error(`configuration_required: capsuleFlashThinkingLevel must be one of ${FLASH_THINKING_LEVELS.join(", ")}`);
   }
   return configured as FlashThinkingLevel;
+}
+
+export function thinkingTimeoutMultiplier(level: FlashThinkingLevel): number {
+  if (level === "xhigh") return XHIGH_THINKING_TIMEOUT_MULTIPLIER;
+  return level === "high" ? HIGH_THINKING_TIMEOUT_MULTIPLIER : 1;
 }
 
 export function resolveConfiguredModel(registry: ModelRegistry, spec: string | undefined): PiModel {

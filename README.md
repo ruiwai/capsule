@@ -79,7 +79,10 @@ Set worker reasoning in project `.pi/settings.json` (merge with existing setting
 
 Valid values are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`.
 Project settings override global settings; `CAPSULE_FLASH_THINKING_LEVEL`
-overrides both. Invalid values fail before the worker starts.
+overrides both. Invalid values fail before the worker starts. `high` doubles and
+`xhigh` triples the effective watchdog deadline (including an explicit
+`timeout_s`) to allow for slower reasoning, capped at Node's maximum timer. The
+nominal deadline remains unchanged in tool instructions and UI call summaries.
 
 Flash inherits the parent's effective system instructions and active tools,
 except delegation. File-backed extensions identified by Pi's tool/command

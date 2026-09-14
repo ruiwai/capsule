@@ -2,7 +2,7 @@ import type { CapsuleBackend, WorkerTelemetry } from "./worker.js";
 import { CapsuleStorage } from "./storage.js";
 import { MAX_TIMER_MS, validateDelegate, validateYield, type DelegateCapsuleArgs, type DelegateCapsuleResult } from "./contracts.js";
 
-export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; cleanupMs?: number; onTelemetry?: (telemetry: WorkerTelemetry) => void };
+export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; timeoutMultiplier?: number; cleanupMs?: number; onTelemetry?: (telemetry: WorkerTelemetry) => void };
 
 type InternalResult = { value?: DelegateCapsuleResult; cleanupConfirmed: boolean };
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -16,6 +16,8 @@ export class CapsuleService {
     const configured = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     if (!Number.isSafeInteger(configured) || configured <= 0 || configured > MAX_TIMER_MS)
       throw Error("configuration_required: Capsule timeout must be a representable positive integer");
+    if (!Number.isSafeInteger(options.timeoutMultiplier ?? 1) || (options.timeoutMultiplier ?? 1) <= 0)
+      throw Error("configuration_required: Capsule timeout multiplier must be a positive integer");
     if (!Number.isSafeInteger(options.cleanupMs ?? DEFAULT_CLEANUP_MS) || (options.cleanupMs ?? DEFAULT_CLEANUP_MS) <= 0)
       throw Error("configuration_required: Capsule cleanup allowance must be a positive integer");
   }
@@ -72,7 +74,10 @@ export class CapsuleService {
   async delegate(args: unknown, externalSignal?: AbortSignal): Promise<DelegateCapsuleResult> {
     validateDelegate(args);
     if (this.activeOwner) return { status: "error", notes: "A prior Capsule delegation still owns this workspace. Its cleanup is not confirmed; wait for termination or restart the runtime before delegating again." };
-    const timeoutMs = args.timeout_s === undefined ? (this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS) : args.timeout_s * 1000;
+    const nominalTimeoutMs = args.timeout_s === undefined ? (this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS) : args.timeout_s * 1000;
+    // Multiplication is runtime policy, not part of the tool instructions.
+    // Clamp at Node's timer limit so every contract-valid nominal deadline stays representable.
+    const timeoutMs = Math.min(nominalTimeoutMs * (this.options.timeoutMultiplier ?? 1), MAX_TIMER_MS);
     const cleanupMs = this.options.cleanupMs ?? DEFAULT_CLEANUP_MS;
     const owner = Symbol("capsule-owner");
     this.activeOwner = owner;

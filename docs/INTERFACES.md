@@ -44,7 +44,11 @@ or a text result is not a runtime error merely because the example differed.
 
 `timeout_s` is optional, positive, finite seconds. The default is
 **300 seconds**, configurable at the plugin level. An explicit per-call value
-wins over the configured default. Add a separate **5-second cleanup allowance**.
+selects the nominal deadline over the configured default. For `high` and `xhigh`
+Flash reasoning, the runtime respectively doubles and triples that nominal
+deadline, capped at Node's timer limit. This allowance is runtime policy, not
+model instruction text or part of the displayed call arguments. Add a separate
+**5-second cleanup allowance**.
 Validate timer representability rather than allowing overflow or an unlimited
 wait. These defaults are enforced by the current runtime.
 

@@ -11,7 +11,7 @@ preserved.** Capsule is the production Pi SDK adapter.
 | Parent projection | Completion passes `result` unchanged and returns retained transcript plus optional notes paths. Blocked/runtime failures use mandatory inline notes and never fabricate a result. |
 | Context | Flash receives selected project JIT, the current capsule, and unchanged example guidance. The parent receives no JIT, successful note text, transcript content, or worker termination flag. |
 | Storage | Searchable UTF-8 transcripts and supplementary notes are retained under the project-scoped state root. Topic updates use atomic project-local replacement with transcript provenance. |
-| Watchdog | One per-call deadline starts before JIT loading/backend setup and remains active through normal persistence. Precedence is `timeout_s` > `CAPSULE_FLASH_TIMEOUT_MS` > 300,000 ms; timer values are range checked. Cleanup has a separate 5,000 ms allowance. |
+| Watchdog | One per-call deadline starts before JIT loading/backend setup and remains active through normal persistence. Precedence is `timeout_s` > `CAPSULE_FLASH_TIMEOUT_MS` > 300,000 ms; `high`/`xhigh` reasoning then applies a 2x/3x runtime multiplier, respectively, capped at Node's timer limit. The multiplier is not added to model instructions or UI call summaries. Cleanup has a separate 5,000 ms allowance. |
 | Termination | Expiry selects timeout once, aborts the owned Pi session, bounds abort/idleness/retention waits, fences late handoff/JIT processing, and retains workspace ownership when cleanup is unconfirmed. User interruption follows the internal abort path rather than returning a public cancellation status. |
 
 The backend uses Pi's actual `session.abort()` boundary. It does not claim an OS

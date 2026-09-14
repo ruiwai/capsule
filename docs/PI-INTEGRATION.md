@@ -69,7 +69,11 @@ The extension-owned `capsuleFlashThinkingLevel` setting is passed as the worker
 session's thinking level; it never changes the parent session. A project value
 wins over a global value, and `CAPSULE_FLASH_THINKING_LEVEL` wins over both.
 Values are `off`, `minimal`, `low`, `medium`, `high`, and `xhigh`; invalid values
-fail before worker setup.
+fail before worker setup. The `high` and `xhigh` levels respectively apply 2x
+and 3x runtime multipliers to the winning working deadline (including
+`timeout_s`), capped at Node's timer limit. This is watchdog policy only: the
+nominal value remains in tool instructions and UI call summaries so models are
+not prompted to compensate.
 Keep the configured model selection explicit,
 exclude the parent's delegation tool from the worker, and keep provider
 credentials in normal Pi configuration. Preserve existing runtime permissions.

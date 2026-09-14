@@ -7,10 +7,10 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import { DefaultResourceLoader, getAgentDir } from "@earendil-works/pi-coding-agent";
 import capsuleExtension from "../src/extension/index.js";
-import { DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
+import { DELEGATE_CAPSULE_DESCRIPTION, DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, PiSdkBackend, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel } from "../src/extension/pi-backend.js";
+import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, HIGH_THINKING_TIMEOUT_MULTIPLIER, PiSdkBackend, XHIGH_THINKING_TIMEOUT_MULTIPLIER, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel, thinkingTimeoutMultiplier } from "../src/extension/pi-backend.js";
 import type { BackendOutcome, CapsuleBackend } from "../src/capsule/worker.js";
 import { CapsuleStorage } from "../src/capsule/storage.js";
 
@@ -154,6 +154,14 @@ describe("refined Capsule lifecycle", () => {
       retain.mockRestore();
     }
   });
+
+  it("applies the runtime timeout multiplier to an explicit nominal deadline", async () => {
+    const backend: CapsuleBackend = { run: () => new Promise(() => {}) };
+    const service = new CapsuleService(backend, { projectRoot: root(), timeoutMultiplier: 2, cleanupMs: 1 });
+    const result = await service.delegate({ capsule: "wait", output_example: "x", timeout_s: 0.01 });
+    expect(result.status).toBe("timeout");
+    expect((result as any).notes).toContain("0.02-second deadline");
+  });
 });
 
 describe("parent/child tool separation", () => {
@@ -164,6 +172,17 @@ describe("parent/child tool separation", () => {
     expect(resolveConfiguredThinkingLevel({ capsuleFlashThinkingLevel: "high" })).toBe("high");
     expect(() => resolveConfiguredThinkingLevel({ capsuleFlashThinkingLevel: "turbo" })).toThrow(/capsuleFlashThinkingLevel/);
     expect(() => resolveConfiguredThinkingLevel({}, "turbo")).toThrow(/capsuleFlashThinkingLevel/);
+  });
+
+  it("allows extra runtime for high-effort Flash reasoning", () => {
+    expect(HIGH_THINKING_TIMEOUT_MULTIPLIER).toBe(2);
+    expect(XHIGH_THINKING_TIMEOUT_MULTIPLIER).toBe(3);
+    for (const level of ["off", "minimal", "low", "medium"] as const)
+      expect(thinkingTimeoutMultiplier(level)).toBe(1);
+    expect(thinkingTimeoutMultiplier("high")).toBe(2);
+    expect(thinkingTimeoutMultiplier("xhigh")).toBe(3);
+    expect(DELEGATE_CAPSULE_DESCRIPTION).not.toMatch(/multiplier|high-effort|thinking level/i);
+    expect(PARENT_CAPSULE_PROMPT).not.toMatch(/multiplier|high-effort|thinking level/i);
   });
 
   it("uses project settings over global settings before resolving Flash reasoning", () => {
