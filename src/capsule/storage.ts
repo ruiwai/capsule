@@ -1,6 +1,6 @@
 import { access, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { TranscriptRecord } from "./worker.js";
 import { GUARDED_PROJECT_FILES, type ContextObservation } from "./jit.js";
@@ -31,17 +31,17 @@ function parseEntry(value: unknown, version: 1 | 2): SavedJit {
     ...(version === 2 && x.context !== null ? { context: x.context as ContextObservation } : {}) };
 }
 
-/** Project-local persistence; lifecycle and deadlines belong to CapsuleService. */
+/** Persistent transcripts and JIT; lifecycle and deadlines belong to CapsuleService. */
 export class CapsuleStorage {
   readonly stateRoot: string;
 
   constructor(project: string, stateRoot?: string) {
     const projectRoot = resolve(project);
-    this.stateRoot = resolve(stateRoot ?? join(projectRoot, ".pi", "capsule"));
-    const stateRelative = relative(projectRoot, this.stateRoot);
-    if (stateRelative === ".." || stateRelative.startsWith(`..${sep}`) || isAbsolute(stateRelative)) {
-      throw Error("configuration_required: Capsule state must be scoped inside the current project");
+    const configuredStateRoot = stateRoot || undefined;
+    if (configuredStateRoot && !isAbsolute(configuredStateRoot)) {
+      throw Error("configuration_required: Capsule state path must be absolute");
     }
+    this.stateRoot = resolve(configuredStateRoot ?? join(projectRoot, ".pi", "capsule"));
   }
 
   async loadJit(): Promise<SavedJit[]> {

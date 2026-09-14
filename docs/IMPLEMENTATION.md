@@ -54,8 +54,9 @@ hard process-isolation guarantee.
 The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings load the extension only. The Pi user-selected model remains the
 parent agent and orchestrator; the plugin never selects or switches it. Flash defaults
 to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_FLASH_MODEL=provider/model-id`
-overrides it independently. `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and absolute
-project-contained `CAPSULE_STATE_DIR` retain their documented behavior.
+overrides it independently. State defaults to `~/.pi/agent/capsule-sessions`;
+`CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and an absolute
+`CAPSULE_STATE_DIR` override retain their documented behavior.
 The extension-owned `capsuleFlashThinkingLevel` setting controls only Flash
 reasoning (`off`, `minimal`, `low`, `medium`, `high`, or `xhigh`). Global settings
 are the fallback when the project setting is absent; project settings win, and

@@ -10,7 +10,7 @@ renderers, and footer. There is no CLI, scripted path, or compatibility layer.
 Within `src/capsule/`, `worker.ts` defines the SDK-independent backend and
 telemetry contracts shared by the lifecycle service, Pi adapter, and footer.
 `service.ts` owns supervision and result projection; `storage.ts` owns
-project-local transcript, notes, and JIT persistence. Only `extension/pi-backend.ts` adapts
+transcript, notes, and JIT persistence under the configured state root. Only `extension/pi-backend.ts` adapts
 the worker to Pi. Temporary transcript/JIT files are cleaned up on failure.
 Dependencies point from the extension to the core, never the reverse. The core
 depends on the `CapsuleBackend` interface, not its Pi implementation.

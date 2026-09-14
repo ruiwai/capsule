@@ -94,8 +94,11 @@ except delegation. File-backed extensions identified by Pi's tool/command
 metadata are reloaded; hook-only and inline extension hooks cannot be cloned.
 `CAPSULE_FLASH_TOOLS` overrides the inherited tool list.
 
-If set, `CAPSULE_STATE_DIR` must be an absolute path inside the project and
-readable by the parent agent.
+Capsule state defaults to `~/.pi/agent/capsule-sessions`, with retained JSONL
+transcripts in its `episodes/` directory and raw Pi sessions in
+`worker-sessions/`, regardless of the directory from which Pi is launched.
+`CAPSULE_STATE_DIR` can override the root with another absolute path readable by
+the parent agent.
 
 ## Development
 

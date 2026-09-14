@@ -1,7 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
@@ -92,10 +92,11 @@ describe("refined Capsule contracts", () => {
 });
 
 describe("refined Capsule lifecycle", () => {
-  it("keeps state project-scoped", () => {
+  it("allows an absolute state directory outside the project", () => {
     const project = root(), backend = new RecordingBackend([]);
     expect(() => new CapsuleService(backend, { projectRoot: project, stateRoot: join(project, "state") })).not.toThrow();
-    expect(() => new CapsuleService(backend, { projectRoot: project, stateRoot: join(project, "..", "outside") })).toThrow(/scoped inside/);
+    expect(() => new CapsuleService(backend, { projectRoot: project, stateRoot: join(project, "..", "outside") })).not.toThrow();
+    expect(() => new CapsuleService(backend, { projectRoot: project, stateRoot: "relative/state" })).toThrow(/must be absolute/);
   });
 
   it("returns a compact negative completion with retained searchable paths", async () => {
@@ -274,12 +275,13 @@ describe("parent/child tool separation", () => {
       (this as any).__parents.push(parent);
       return settled("parent-context");
     });
-    vi.stubEnv("CAPSULE_STATE_DIR", undefined);
+    const project = root();
+    vi.stubEnv("CAPSULE_STATE_DIR", join(project, ".pi", "capsule"));
     vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
     vi.stubEnv("CAPSULE_FLASH_TOOLS", undefined);
     try {
       capsuleExtension(pi as any);
-      const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: root(),
+      const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: project,
         modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
         getSystemPrompt: () => prompt };
       const delegate = tools[0];
@@ -297,6 +299,27 @@ describe("parent/child tool separation", () => {
         extensionPaths: ["/tmp/bash-extension.mjs", "/tmp/new-command-extension.mjs"], tools: ["bash", "write"] });
     } finally {
       run.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("defaults extension state to the user-level capsule sessions directory", async () => {
+    const tools: any[] = [];
+    const delegate = vi.spyOn(CapsuleService.prototype, "delegate")
+      .mockResolvedValue({ status: "blocked", notes: "stub" });
+    vi.stubEnv("CAPSULE_STATE_DIR", undefined);
+    vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
+    try {
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: vi.fn() } as any);
+      const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: root(),
+        modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) } };
+      await tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
+      const service = delegate.mock.instances[0] as any;
+      const expected = join(homedir(), ".pi", "agent", "capsule-sessions");
+      expect(service.storage.stateRoot).toBe(expected);
+      expect(service.backend.options.stateDir).toBe(join(expected, "worker-sessions"));
+    } finally {
+      delegate.mockRestore();
       vi.unstubAllEnvs();
     }
   });

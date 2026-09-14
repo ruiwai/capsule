@@ -9,7 +9,7 @@ vi.mock("node:fs/promises", async importOriginal => {
   return { ...actual, writeFile: vi.fn(actual.writeFile) };
 });
 
-describe("project-local Capsule storage", () => {
+describe("Capsule storage", () => {
   let project: string;
   let storage: CapsuleStorage;
   const entries = [{ topic: "tests", content: "Run npm test", raw_history: "/retained/history", updatedAt: "2026-09-14" }];
@@ -23,9 +23,10 @@ describe("project-local Capsule storage", () => {
     await fs.rm(project, { recursive: true, force: true });
   });
 
-  it("rejects sibling paths with the same project prefix", () => {
-    expect(() => new CapsuleStorage(project, `${project}-outside`)).toThrow(/scoped inside/);
-    expect(() => new CapsuleStorage(project, project)).not.toThrow();
+  it("accepts absolute user-level paths and rejects relative overrides", () => {
+    expect(() => new CapsuleStorage(project, `${project}-outside`)).not.toThrow();
+    expect(() => new CapsuleStorage(project, "relative/state")).toThrow(/must be absolute/);
+    expect(new CapsuleStorage(project, "").stateRoot).toBe(join(project, ".pi", "capsule"));
   });
 
   it("loads missing knowledge as empty and round-trips published lessons", async () => {
