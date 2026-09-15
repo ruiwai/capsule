@@ -2,7 +2,7 @@ import { mkdtemp, readFile, writeFile, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { observeProjectContext, selectApplicableJit, type ContextObservation } from "../src/capsule/jit.js";
+import { observeProjectContext, type ContextObservation } from "../src/capsule/jit.js";
 import { CapsuleService } from "../src/capsule/service.js";
 import { CapsuleStorage, type SavedJit } from "../src/capsule/storage.js";
 import type { CapsuleBackend } from "../src/capsule/worker.js";
@@ -15,31 +15,6 @@ function context(fingerprint = "a".repeat(64)): ContextObservation {
 function entry(topic: string, content: string, age: number, ctx = context()): SavedJit {
   return { topic, content, raw_history: `/history/${topic}`, updatedAt: new Date(age).toISOString(), context: ctx };
 }
-
-describe("applicability-based JIT", () => {
-  it("ranks an older applicable npm lesson above eight newer plotting lessons", () => {
-    const old = entry("npm-suite", "Use when npm tests are requested. Do: npm test. Verify: read failing assertions. Recheck when lock changes.", 1);
-    const plots = Array.from({ length: 8 }, (_, i) => entry(`plot-${i}`, `Render chart axis color palette ${i}`, 100 + i));
-    expect(selectApplicableJit("Run npm test and report assertions", [...plots, old], context())).toEqual([old]);
-  });
-
-  it("uses capsule only, returns none without useful matches, and is deterministic", () => {
-    const entries = [entry("alpha", "alpha procedure", 1), entry("beta", "beta procedure", 1)];
-    expect(selectApplicableJit("unrelated deployment", entries, context())).toEqual([]);
-    expect(selectApplicableJit("alpha operation", entries, context(), { maxEntries: 1 })).toEqual([entries[0]]);
-    expect(selectApplicableJit("unrelated deployment", entries, context())).toEqual([]); // an example containing alpha is intentionally absent from the API
-  });
-
-  it("respects count/text budgets without truncating guards or verification", () => {
-    const complete = entry("npm-a", "npm Use when: suite. Do: command. Verify: decisive guard. Recheck when: lock changes.", 3);
-    const tooMuch = entry("npm-b", `npm ${"x".repeat(100)} Verify: END_GUARD`, 2);
-    const small = entry("npm-c", "npm Verify: intact", 1);
-    const selected = selectApplicableJit("npm", [small, tooMuch, complete], context(),
-      { maxEntries: 2, maxTextChars: complete.topic.length + complete.content.length + small.topic.length + small.content.length });
-    expect(selected).toEqual([complete, small]);
-    expect(selected[0]!.content).toContain("Recheck when: lock changes.");
-  });
-});
 
 describe("guarded freshness", () => {
   it("observes changed, added, and deleted guards while ignoring unguarded source edits", async () => {
@@ -61,13 +36,14 @@ describe("guarded freshness", () => {
     expect(await observeProjectContext(project)).toBeUndefined();
   });
 
-  it("permits matching context, excludes stale/legacy context, and still runs with empty JIT", async () => {
+  it("offers every fresh lesson regardless of capsule text and excludes stale or legacy lessons", async () => {
     const project = await mkdtemp(join(tmpdir(), "capsule-service-"));
     await writeFile(join(project, "package-lock.json"), "one");
     const observed = (await observeProjectContext(project))!;
     const storage = new CapsuleStorage(project);
     await storage.publish([
       entry("npm-current", "npm procedure verify lock", 2, observed),
+      entry("plot-current", "render chart axis", 3, observed),
       { ...entry("npm-legacy", "npm legacy procedure", 1), context: undefined },
     ], new AbortController().signal);
     const seen: BackendInput[] = [];
@@ -75,9 +51,9 @@ describe("guarded freshness", () => {
       yield: { reason: "completed", result: true, JITed_history: [] } }; } };
     const service = new CapsuleService(backend, { projectRoot: project });
     await service.delegate({ capsule: "execute npm procedure", output_example: "legacy npm output must not retrieve" });
-    expect(seen[0]!.jit.map(x => x.topic)).toEqual(["npm-current"]);
+    expect(seen[0]!.jit.map(x => x.topic)).toEqual(["npm-current", "plot-current"]);
     await service.delegate({ capsule: "deploy unrelated service", output_example: "npm procedure" });
-    expect(seen[1]!.jit).toEqual([]);
+    expect(seen[1]!.jit.map(x => x.topic)).toEqual(["npm-current", "plot-current"]);
     await writeFile(join(project, "package-lock.json"), "two");
     await service.delegate({ capsule: "execute npm procedure", output_example: "x" });
     expect(seen[2]!.jit).toEqual([]);

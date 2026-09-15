@@ -1,7 +1,7 @@
 import type { CapsuleBackend, WorkerTelemetry } from "./worker.js";
 import { CapsuleStorage } from "./storage.js";
 import { MAX_TIMER_MS, validateDelegate, validateYield, type DelegateCapsuleArgs, type DelegateCapsuleResult } from "./contracts.js";
-import { observeProjectContext, selectApplicableJit } from "./jit.js";
+import { observeProjectContext } from "./jit.js";
 
 export type CapsuleServiceOptions = { projectRoot: string; stateRoot?: string; timeoutMs?: number; timeoutMultiplier?: number; cleanupMs?: number; onTelemetry?: (telemetry: WorkerTelemetry) => void };
 
@@ -29,9 +29,14 @@ export class CapsuleService {
       if (signal.aborted) return { cleanupConfirmed };
       const initialContext = await observeProjectContext(this.options.projectRoot);
       if (signal.aborted) return { cleanupConfirmed };
-      const selected = selectApplicableJit(args.capsule, old, initialContext);
+      // Flash chooses lessons explicitly. Only freshness eligibility is decided
+      // here; task text is never compared with lesson text.
+      const lessons = initialContext ? old.filter(entry => entry.context
+        && entry.context.fingerprint === initialContext.fingerprint
+        && entry.context.projectIdentity === initialContext.projectIdentity
+        && entry.context.platform === initialContext.platform) : [];
       const outcome = await this.backend.run({ capsule: args.capsule, outputExample: args.output_example,
-        jit: selected.map(({ topic, content, raw_history }) => ({ topic, content, raw_history })),
+        jit: lessons.map(({ topic, content, raw_history }) => ({ topic, content, raw_history })),
         signal, cleanupMs: this.options.cleanupMs ?? DEFAULT_CLEANUP_MS, onTelemetry: this.options.onTelemetry });
       cleanupConfirmed = outcome.cleanupConfirmed !== false;
       // Retain observations during bounded cleanup too, but never publish a late handoff/JIT.

@@ -1,11 +1,13 @@
-# Two tools, example-guided output, bounded execution
+# Worker tools, example-guided output, bounded execution
 
 **Implemented contract: 14 September 2026.** See
 [implementation status](IMPLEMENTATION.md).
 
 ```text
 Parent agent: delegate_capsule({ capsule, output_example, timeout_s? })
-Flash:  yield({ reason, result?, notes?, JITed_history })
+Flash: list_lesson_topic({})
+       fetch_lesson({ topic })
+       yield({ reason, result?, notes?, JITed_history })
 
 Completed -> compact result + optional notes file path + transcript path
 Failed    -> mandatory inline notes + transcript path when available
@@ -13,8 +15,8 @@ JIT       -> project-local knowledge for later Flash episodes, not the parent ag
 ```
 
 The Pi user-selected model is the parent agent and orchestrator. This plugin never
-selects or switches that parent model; Flash is configured independently. These
-are the only two additional model-facing tools. Ordinary Pi tools remain
+selects or switches that parent model; Flash is configured independently. The plugin
+owns these additional model-facing tools. Ordinary Pi tools remain
 available under the configured runtime permissions. The parent call returns
 once through normal tool-result context; no polling or duplicate message.
 
@@ -54,9 +56,14 @@ model instruction text or part of the displayed call arguments. Add a separate
 Validate timer representability rather than allowing overflow or an unlimited
 wait. These defaults are enforced by the current runtime.
 
-The plugin supplies Flash's configured model, project, tools, selected JIT,
+The plugin supplies Flash's configured model, project, tools, on-demand JIT access,
 transcript locations, and parent/child binding. Do not let either model invent
 callback addresses or archive paths.
+
+`list_lesson_topic({})` returns the exact topic keys for lessons whose saved
+project context is still fresh. `fetch_lesson({topic})` returns that lesson's
+complete content and transcript provenance. An unknown topic is a tool error.
+Flash decides which topics are relevant; neither tool grants task authority.
 
 ## Flash's yield
 
@@ -192,12 +199,12 @@ Publish only from a valid, timely, settled yield with retained provenance. A
 blocked yield may contain a genuine verified lesson; its task remains blocked.
 Timeout, runtime error, interrupted, malformed, or late yields publish no JIT.
 The parent agent can inspect/correct knowledge deliberately; it is not automatically shown.
-Selection uses meaningful lexical overlap with the current capsule only, capped
-at three intact entries and 8,000 topic/content characters. Recency only breaks
-applicability ties; unmatched capacity is left empty. Stored context fingerprints
+Flash calls `list_lesson_topic` to discover available fresh topics and
+`fetch_lesson` to read a selected complete lesson with provenance. The runtime
+does not compare capsule and lesson text or inject lesson content. Stored context fingerprints
 cover canonical project identity, platform, and a bounded root manifest/lock/
-configuration guard set. Matching is eligibility, not proof; stale, unknown,
-and legacy-v1 lessons remain inspectable but are not injected. Unguarded source
+configuration guard set. Matching context is eligibility, not proof; stale,
+unknown, and legacy-v1 lessons are not exposed to Flash. Unguarded source
 or environment changes are not detected.
 
 ## Watchdog and terminal handling

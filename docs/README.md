@@ -9,7 +9,7 @@ artifacts, internal JIT, and bounded parent-owned watchdog.
 | [Interfaces](INTERFACES.md) | Example-guided output, asymmetric notes, path-only history, and explicit timeout. |
 | [Implementation status](IMPLEMENTATION.md) | Implemented behavior, automated checks, and remaining live-test limits. |
 | [Architecture](ARCHITECTURE.md) | The Pi-selected parent agent, Flash, the thin plugin, and the different destinations for outputs. |
-| [Context lifecycle](CONTEXT-LIFECYCLE.md) | Injection, adaptive work, yield, JIT publication, and next-episode input. |
+| [Context lifecycle](CONTEXT-LIFECYCLE.md) | On-demand lesson access, adaptive work, yield, JIT publication, and next-episode input. |
 | [Pi integration](PI-INTEGRATION.md) | Existing backend, local Pi references, hooks, and timeout limits. |
 | [Original proposal](sources/ORIGINAL-PROPOSAL.txt) | User-supplied proposal and JIT method, preserved unchanged. |
 
@@ -24,7 +24,7 @@ from the original proposal.
 
 The Pi-selected parent agent gives temporary direction and reviews the answer. Flash chooses useful
 permitted actions from observations. The plugin uses ordinary Pi/subagent
-execution and owns context selection, handoff delivery, storage, and watchdogs.
+execution and owns context freshness filtering, handoff delivery, storage, and watchdogs.
 It does not need a new command registry, authorization ledger, output type
 checker, or general memory service.
 

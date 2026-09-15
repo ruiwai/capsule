@@ -6,16 +6,12 @@ context-stack example; [INTERFACES.md](INTERFACES.md) supplies the latest payloa
 
 ## 1. Select reusable knowledge
 
-Start Flash with base instructions and relevant project/tool lessons, including
-provenance paths. A deterministic lexical selector compares meaningful capsule
-terms (not `output_example`) with lesson topics/content. Applicability outranks
-recency, which only breaks ties; no lexical match means no JIT. At most three
-complete lessons and 8,000 topic/content characters are injected, so guards and
-verification are omitted as a whole rather than truncated. This heuristic can
-miss semantic relationships, and Flash must still check stated applicability.
-Do not load every saved lesson or raw log. Keep the common
-executable path, minimum guard, and decisive verification visible; retrieve
-uncommon branches and history only when actual evidence calls for them.
+Start Flash with base instructions and two worker-only JIT tools.
+`list_lesson_topic` lists fresh project lesson keys without exposing their
+contents; Flash selects potentially relevant topics and calls `fetch_lesson` for
+the complete lesson and provenance. No capsule/lesson text comparison or lesson
+prompt injection is performed. Flash must still verify stated applicability and
+should fetch only knowledge useful to the current task.
 
 ## 2. Append current direction and answer guidance
 
@@ -28,7 +24,7 @@ The child context is:
 
 ```text
 base instructions and ordinary configured tools
-selected JIT lessons with transcript-path provenance
+list_lesson_topic and fetch_lesson
 current capsule from the parent agent
 current output example
 current episode's tool calls and observations
@@ -94,7 +90,7 @@ The next delegation receives:
 
 ```text
 base instructions
-selected retained JIT, including the useful new lesson
+JIT topic-list and lesson-fetch tools, including access to the useful new lesson
 new capsule
 new output example
 new episode messages only

@@ -42,9 +42,9 @@ Parent agent: delegate_capsule({ capsule, output_example, timeout_s? })
                  |
         parent watchdog starts
                  v
-Flash: base instructions + selected JIT + capsule + output example
+Flash: base instructions + JIT read tools + capsule + output example
                  |
-         ordinary tools <-> observations
+ ordinary/JIT tools <-> observations
                  |
                  v
 yield({ reason, result?, notes?, JITed_history })
@@ -73,7 +73,7 @@ is needed. The worker stops; the parent agent remains able to continue.
 
 ## Context lifecycle, not process identity
 
-Continue using fresh child contexts seeded with selected project JIT. Remove
+Continue using fresh child contexts with on-demand access to fresh project JIT. Remove
 old task direction, output examples, and noisy observations from the next
 model input while retaining the archive. A new session that copies all old
 messages has not reclaimed context; neither has an "ignore previous" message.

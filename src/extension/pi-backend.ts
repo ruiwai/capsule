@@ -1,5 +1,6 @@
 import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, type ExtensionAPI, type InlineExtension, type ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { mkdir } from "node:fs/promises";
+import { Type } from "typebox";
 import { YieldParameters, validateYield, type YieldArgs } from "../capsule/contracts.js";
 import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
 
@@ -33,13 +34,30 @@ export function createWorkerExtension(
   return (pi: ExtensionAPI) => {
     pi.on("before_agent_start", async event => {
       state.hooksRan = true;
-      const lessons = input.jit.length
-        ? input.jit.map(x => `### ${x.topic}\n${x.content}\nProvenance: ${x.raw_history}`).join("\n\n")
-        : "(none selected)";
       // This factory runs last: prompt-replacing extensions (such as poor) must
       // not erase inherited instructions or the worker's terminal protocol.
       const base = (input.parentSystemPrompt ?? event.systemPrompt).replace(PARENT_CAPSULE_PROMPT, "");
-      return { systemPrompt: `${base}\n\n${WORKER_CAPSULE_PROMPT}\n\n# Output example (format only; not a schema or an answer to copy)\n${input.outputExample}\n\n# Selected project JIT knowledge (verify applicability)\n${lessons}` };
+      return { systemPrompt: `${base}\n\n${WORKER_CAPSULE_PROMPT}\n\n# Output example (format only; not a schema or an answer to copy)\n${input.outputExample}` };
+    });
+    pi.registerTool({
+      name: "list_lesson_topic", label: "List JIT lesson topics",
+      description: "List the available fresh project-local JIT lesson topics. Select potentially useful topics yourself, then read them with fetch_lesson.",
+      parameters: Type.Object({}, { additionalProperties: false }),
+      async execute() {
+        const topics = input.jit.map(lesson => lesson.topic).sort((a, b) => a.localeCompare(b));
+        return { content: [{ type: "text", text: JSON.stringify({ topics }) }], details: { topics } };
+      },
+    });
+    pi.registerTool({
+      name: "fetch_lesson", label: "Fetch a JIT lesson",
+      description: "Read one available project-local JIT lesson by its exact topic. Treat it as advisory prior knowledge and verify that it applies.",
+      parameters: Type.Object({ topic: Type.String({ minLength: 1, maxLength: 64,
+        description: "Exact topic returned by list_lesson_topic." }) }, { additionalProperties: false }),
+      async execute(_id, args) {
+        const lesson = input.jit.find(candidate => candidate.topic === args.topic);
+        if (!lesson) throw Error(`lesson_not_found: ${args.topic}; call list_lesson_topic for available topics`);
+        return { content: [{ type: "text", text: JSON.stringify(lesson) }], details: lesson };
+      },
     });
     pi.registerTool({
       name: "yield", label: "Yield to the parent agent",
@@ -91,7 +109,8 @@ export class PiSdkBackend implements CapsuleBackend {
     const manager = SessionManager.create(this.options.cwd, this.options.stateDir);
     const creating = createAgentSession({ cwd: this.options.cwd, model: this.options.model,
       thinkingLevel: this.options.thinkingLevel ?? DEFAULT_FLASH_THINKING_LEVEL,
-      tools: [...(parent?.tools ?? this.options.tools), "yield"], excludeTools: ["delegate_capsule"],
+      tools: [...new Set([...(parent?.tools ?? this.options.tools), "list_lesson_topic", "fetch_lesson", "yield"])],
+      excludeTools: ["delegate_capsule"],
       resourceLoader: loader, sessionManager: manager });
     const created = await stage(creating);
     if (!created) {

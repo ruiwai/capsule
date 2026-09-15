@@ -444,12 +444,17 @@ describe("parent/child tool separation", () => {
     expect(delegateTool.executionMode).toBe("sequential");
     expect(order).toEqual(["bash:start", "bash:end", "delegate:start"]);
   });
-  it("injects exact example/JIT and exposes only terminating yield in Flash", async () => {
+  it("lets Flash list and fetch JIT without injecting lesson text", async () => {
     const tools: any[] = [], hooks = new Map<string, any>(), state = { hooksRan: false, duplicate: false };
-    const extension = createWorkerExtension({ outputExample: "PLAIN EXAMPLE", jit: [{ topic: "project-tests", content: lesson, raw_history: "/project/episode.jsonl" }] }, state);
+    const extension = createWorkerExtension({ outputExample: "PLAIN EXAMPLE", jit: [
+      { topic: "project-tests", content: lesson, raw_history: "/project/episode.jsonl" },
+      { topic: "alpha-setup", content: "another complete lesson", raw_history: "/project/earlier.jsonl" },
+    ] }, state);
     await (extension as any)({ registerTool: (tool: any) => tools.push(tool), on: (name: string, handler: any) => hooks.set(name, handler) });
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
-    expect(injected.systemPrompt).toContain("PLAIN EXAMPLE"); expect(injected.systemPrompt).toContain(lesson);
+    expect(injected.systemPrompt).toContain("PLAIN EXAMPLE");
+    expect(injected.systemPrompt).not.toContain(lesson);
+    expect(injected.systemPrompt).not.toContain("another complete lesson");
     expect(injected.systemPrompt.split("PLAIN EXAMPLE")).toHaveLength(2);
     expect(injected.systemPrompt).toContain(WORKER_CAPSULE_PROMPT);
     expect(injected.systemPrompt).toContain("Return your report through the yield tool, not a plain-text final answer");
@@ -460,11 +465,16 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("Use [] if none");
     expect(injected.systemPrompt).not.toContain(PARENT_CAPSULE_PROMPT);
     expect(injected.systemPrompt).not.toContain("sole final tool call");
-    expect(tools[0].description).toContain("sole final tool call");
-    expect(tools.map(x => x.name)).toEqual(["yield"]);
-    expect(tools[0].executionMode).toBe("sequential");
-    expect((await tools[0].execute("yield-1", handoff)).terminate).toBe(true);
-    await expect(tools[0].execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
+    expect(tools.map(x => x.name)).toEqual(["list_lesson_topic", "fetch_lesson", "yield"]);
+    const listed = await tools[0].execute("list", {});
+    expect(JSON.parse(listed.content[0].text)).toEqual({ topics: ["alpha-setup", "project-tests"] });
+    const fetched = await tools[1].execute("fetch", { topic: "project-tests" });
+    expect(JSON.parse(fetched.content[0].text)).toEqual({ topic: "project-tests", content: lesson, raw_history: "/project/episode.jsonl" });
+    await expect(tools[1].execute("missing", { topic: "unknown" })).rejects.toThrow(/lesson_not_found/);
+    expect(tools[2].description).toContain("sole final tool call");
+    expect(tools[2].executionMode).toBe("sequential");
+    expect((await tools[2].execute("yield-1", handoff)).terminate).toBe(true);
+    await expect(tools[2].execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
   });
   it.each([undefined, "other/custom"])("keeps parent model ownership with Flash configured as %s", async configured => {
     const tools: any[] = [], setModel = vi.fn();

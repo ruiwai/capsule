@@ -32,8 +32,9 @@ The original design references remain useful:
   skills, templates, and context files are disabled. Pi's normal
   SYSTEM.md/APPEND_SYSTEM.md discovery still applies; those overrides are not
   disabled by `noContextFiles`.
-- Worker hook: append bounded-execution/reporting guidance, the verbatim output
-  example once, and selected project JIT. The capsule is the user message, not
+- Worker hook: append bounded-execution/reporting guidance and the verbatim output
+  example once. Register `list_lesson_topic` and `fetch_lesson` for explicit,
+  model-selected access to fresh project JIT. The capsule is the user message, not
   repeated in the system prompt. The `yield` tool alone owns terminal-call rules;
   its schema owns the completed/blocked envelope.
 
@@ -45,7 +46,8 @@ permission changes are involved; prompt boundaries are not enforcement.
 | --- | --- |
 | Parent `delegate_capsule` | Accept capsule, output example, and optional timeout; start parent supervision before awaited setup. |
 | Parent `before_agent_start` | Keep substantive judgment with the parent; delegate bounded tool work only. |
-| Worker `before_agent_start` | Add bounded-work guidance, selected JIT, and unchanged output example without duplicating the capsule or tool instructions. |
+| Worker `before_agent_start` | Add bounded-work guidance and unchanged output example without duplicating the capsule or tool instructions. |
+| Worker JIT tools | List fresh lesson topics and fetch one complete lesson with provenance on demand. |
 | Worker `yield` | Capture completed/blocked handoff. `result` is arbitrary JSON; only the fixed envelope is checked. |
 | Worker terminating result | End Flash only; do not forward its termination flag to the parent agent. |
 | Backend completion / settlement | Finalize normal yield once; not a reason to wait past the independent deadline. |

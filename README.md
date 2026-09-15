@@ -59,7 +59,8 @@ of the desired answer, and an optional deadline:
 - Successful calls return a compact result and paths to retained history and
   optional notes. Blocked, timed-out, or failed calls include an inline explanation.
 - History is returned as a path, not injected into the parent context. Useful
-  project-local knowledge is saved for later workers.
+  project-local knowledge is saved for later workers, which select and read it
+  on demand with `list_lesson_topic` and `fetch_lesson`.
 - The default deadline is 300 seconds, with a separate 5-second cleanup allowance.
   Task boundaries are instructions, **not an OS sandbox**.
 

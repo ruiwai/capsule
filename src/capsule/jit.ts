@@ -2,8 +2,6 @@ import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 
-export const DEFAULT_JIT_ENTRY_LIMIT = 3;
-export const DEFAULT_JIT_TEXT_BUDGET = 8_000;
 const MAX_GUARD_FILE_BYTES = 1_000_000;
 
 /** Deliberately fixed and small: these are project/tool context, not a repository scan. */
@@ -20,55 +18,6 @@ export type ContextObservation = {
   guardedFiles: string[];
   observedAt: string;
 };
-
-export type SelectableJit = {
-  topic: string;
-  content: string;
-  raw_history: string;
-  updatedAt: string;
-  context?: ContextObservation;
-};
-
-const GENERIC = new Set(["project", "projects", "result", "results", "file", "files", "task", "tasks",
-  "work", "working", "run", "use", "using", "check", "checks", "test", "tests", "current", "change", "changes"]);
-
-function terms(text: string): Set<string> {
-  return new Set((text.toLowerCase().match(/[a-z0-9]+/g) ?? [])
-    .filter(term => term.length > 1 && !GENERIC.has(term)));
-}
-
-/** Lexical applicability is deterministic guidance, not semantic certification. */
-export function selectApplicableJit<T extends SelectableJit>(
-  capsule: string,
-  entries: T[],
-  current: ContextObservation | undefined,
-  options: { maxEntries?: number; maxTextChars?: number } = {},
-): T[] {
-  if (!current) return [];
-  const query = terms(capsule);
-  if (!query.size) return [];
-  const ranked = entries.flatMap(entry => {
-    if (!entry.context || entry.context.fingerprint !== current.fingerprint
-      || entry.context.projectIdentity !== current.projectIdentity || entry.context.platform !== current.platform) return [];
-    const topicTerms = terms(entry.topic), contentTerms = terms(entry.content);
-    let score = 0;
-    for (const term of query) score += (topicTerms.has(term) ? 2 : 0) + (contentTerms.has(term) ? 1 : 0);
-    return score > 0 ? [{ entry, score }] : [];
-  }).sort((a, b) => b.score - a.score
-    || b.entry.updatedAt.localeCompare(a.entry.updatedAt)
-    || a.entry.topic.localeCompare(b.entry.topic));
-  const selected: T[] = [];
-  let used = 0;
-  const limit = options.maxEntries ?? DEFAULT_JIT_ENTRY_LIMIT;
-  const budget = options.maxTextChars ?? DEFAULT_JIT_TEXT_BUDGET;
-  for (const { entry } of ranked) {
-    if (selected.length >= limit) break;
-    const size = entry.topic.length + entry.content.length;
-    if (used + size > budget) continue;
-    selected.push(entry); used += size;
-  }
-  return selected;
-}
 
 /** Returns unknown on unreadable identity/guards or bounded-read overflow. Missing files are observed explicitly. */
 export async function observeProjectContext(projectRoot: string): Promise<ContextObservation | undefined> {
