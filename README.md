@@ -22,6 +22,34 @@ The dependencies include Pi. Trust the repository when prompted so its
 `.pi/settings.json` can load the extension. Use Pi's `/login` command or your
 usual provider credentials to authenticate both the parent and worker models.
 
+`npm ci` runs a version-guarded postinstall patch for Pi 0.85.1's sequential
+tool loop (SDK and CLI/RPC bundle). If install scripts were disabled, run
+`npm run postinstall`. Restart Pi after patching. This affects the Pi installed
+in this checkout, **not a separately installed/global Pi**; use the executable
+below to get the same behavior in other projects. Review the patch on Pi upgrades.
+
+### Sequential short-circuiting
+
+Loading Capsule forces **all tool calls** to run sequentially in both parent
+and worker sessions, even batches containing only ordinary tools such as
+`bash_exec` or `apply_patch`. This overrides Pi's parallel setting and individual
+tool execution modes. The extension sets a process-wide opt-in read by the
+patched SDK/CLI dispatcher; it lasts until process exit. Without that opt-in,
+Pi's normal execution-mode selection is unchanged.
+The first tool error stops execution of the remaining calls in that response.
+Skipped calls receive explicit error results (preserving tool-call IDs) without
+argument preparation, tool-call/result hooks, or tool execution. Lifecycle
+events still report those skipped results. The next model response can
+reassess and retry; earlier filesystem effects are not rolled back.
+
+Failures include exceptions, invalid arguments, missing tools, blocked calls,
+and results marked `isError`. Capsule also marks unsuccessful `bash_exec`
+outcomes and non-completed delegations as errors. A `completed` delegation can
+contain negative evidence and does **not** automatically stop the batch.
+Speculatively batch calls whose arguments and next actions are already known
+on the success path to save message rounds. Do not speculate across decisions
+or guess values from unread outputs.
+
 To use Capsule in another project, launch Pi from that project's directory:
 
 ```sh

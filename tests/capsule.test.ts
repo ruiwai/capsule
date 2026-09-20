@@ -373,7 +373,9 @@ describe("parent/child tool separation", () => {
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
-    expect(injected.systemPrompt).toContain("All tool calls are blocking and execute sequentially");
+    expect(injected.systemPrompt).toContain("Sequential batches stop at the first tool error");
+    expect(injected.systemPrompt).toContain("remaining calls are reported skipped, not executed");
+    expect(injected.systemPrompt).toContain("Speculatively batch known-argument calls");
     expect(injected.systemPrompt).toContain("apply_patch followed by bash_exec to test it");
     expect(injected.systemPrompt).toContain("intermediate result requires a decision or branch");
     expect(injected.systemPrompt).toContain("# Saving input tokens");

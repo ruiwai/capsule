@@ -9,10 +9,12 @@ import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/
 import { installCapsuleFooter } from "./footer.js";
 import type { WorkerTelemetry } from "../capsule/worker.js";
 import { captureParentContext } from "./parent-context.js";
+import { installToolExecutionPolicy } from "./tool-policy.js";
 
 const DEFAULT_CAPSULE_STATE_DIR = join(homedir(), ".pi", "agent", "capsule-sessions");
 
 export default function capsuleExtension(pi: ExtensionAPI) {
+  installToolExecutionPolicy(pi);
   let service: CapsuleService | undefined;
   let workerIdentity: { workerProvider: string; workerModel: string } | undefined;
   let workerTelemetry: WorkerTelemetry | undefined;

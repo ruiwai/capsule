@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { Type } from "typebox";
 import { YieldParameters, validateYield, type YieldArgs } from "../capsule/contracts.js";
 import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
+import { installToolExecutionPolicy } from "./tool-policy.js";
 
 import type { BackendOutcome, CapsuleBackend, TranscriptRecord } from "../capsule/worker.js";
 
@@ -32,6 +33,7 @@ export function createWorkerExtension(
   state: WorkerHandoffState,
 ): InlineExtension {
   return (pi: ExtensionAPI) => {
+    installToolExecutionPolicy(pi);
     pi.on("before_agent_start", async event => {
       state.hooksRan = true;
       // This factory runs last: prompt-replacing extensions (such as poor) must
