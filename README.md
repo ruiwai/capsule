@@ -103,6 +103,13 @@ Capsule never switches the parent model. Flash defaults to
 export CAPSULE_FLASH_MODEL='provider/model-id'
 ```
 
+Use `/flash` to open the same model picker as `/model`, or
+`/flash provider/model-id` to select directly. This overrides the environment
+default for subsequent delegations in the current session without changing the
+parent model. The selection resets on session start/resume; cancel leaves it unchanged.
+Change models while the agent is idle and Flash cleanup has completed.
+Outside the TUI, use the direct form.
+
 Set worker reasoning in project `.pi/settings.json` (merge with existing settings):
 
 ```json

@@ -1,4 +1,4 @@
-import { SettingsManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { ModelSelectorComponent, SettingsManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } from "../capsule/contracts.js";
@@ -21,9 +21,10 @@ export default function capsuleExtension(pi: ExtensionAPI) {
   let workerState = "idle";
   let requestFooterRender: (() => void) | undefined;
   let sessionGeneration = 0;
+  let selectedFlashModel: string | undefined;
   const flashModel = () => workerIdentity
     ? `${workerIdentity.workerProvider}/${workerIdentity.workerModel}`
-    : (process.env.CAPSULE_FLASH_MODEL || DEFAULT_FLASH_MODEL);
+    : (selectedFlashModel ?? process.env.CAPSULE_FLASH_MODEL ?? DEFAULT_FLASH_MODEL);
   const showFlashStatus = (ctx: ExtensionContext, state: string) => {
     workerState = state;
     // TUI uses the custom footer; other UI modes use a status row.
@@ -32,9 +33,61 @@ export default function capsuleExtension(pi: ExtensionAPI) {
     }
     requestFooterRender?.();
   };
+  pi.registerCommand("flash", {
+    description: "Select Flash's model (or /flash provider/model-id)",
+    async handler(args, ctx) {
+      const canChangeModel = () => {
+        if (ctx.isIdle() && !service?.isActive) return true;
+        ctx.ui.notify("Wait for the current operation and Flash cleanup to finish before changing Flash's model.", "warning");
+        return false;
+      };
+      if (!canChangeModel()) {
+        return;
+      }
+      const generation = sessionGeneration;
+      try {
+        let spec = args.trim();
+        if (!spec) {
+          if (!ctx.hasUI || ctx.mode !== "tui") {
+            ctx.ui.notify(`Flash: ${flashModel()}. Use /flash provider/model-id.`, "info");
+            return;
+          }
+          const registry = ctx.modelRegistry;
+          // The built-in picker expects the internal ModelRuntime. Adapt only its
+          // catalogue operations to the public extension registry (Pi 0.85.1).
+          const runtime = {
+            getAvailableSnapshot: () => registry.getAvailable(),
+            getModel: (provider: string, id: string) => registry.find(provider, id),
+            getError: () => registry.getError(),
+            refresh: (options: Parameters<typeof registry.refresh>[0]) => registry.refresh(options),
+          } satisfies Pick<ConstructorParameters<typeof ModelSelectorComponent>[2],
+            "getAvailableSnapshot" | "getModel" | "getError" | "refresh">;
+          const current = flashModel();
+          const slash = current.indexOf("/");
+          const model = await ctx.ui.custom<ReturnType<typeof registry.find>>((tui, _theme, _keys, done) =>
+            new ModelSelectorComponent(tui, registry.find(current.slice(0, slash), current.slice(slash + 1)),
+              runtime as unknown as ConstructorParameters<typeof ModelSelectorComponent>[2],
+              ctx.scopedModels, done, () => done(undefined)));
+          if (!model) return;
+          spec = `${model.provider}/${model.id}`;
+        }
+        if (generation !== sessionGeneration || !canChangeModel()) return;
+        const model = resolveConfiguredModel(ctx.modelRegistry, spec);
+        selectedFlashModel = `${model.provider}/${model.id}`;
+        service = undefined;
+        workerIdentity = undefined;
+        workerTelemetry = undefined;
+        showFlashStatus(ctx, "idle");
+        ctx.ui.notify(`Flash model: ${selectedFlashModel}`, "info");
+      } catch (error) {
+        ctx.ui.notify(String(error), "error");
+      }
+    },
+  });
   pi.on("session_start", async (_event, ctx) => {
     // A replacement session must not inherit the previous worker's row or identity.
     sessionGeneration++;
+    selectedFlashModel = undefined;
     service = undefined;
     workerTelemetry = undefined;
     workerIdentity = undefined;
@@ -58,7 +111,7 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           // A failed setup must not leave the previous worker's identity on its
           // fallback result.
           workerIdentity = undefined;
-          const model = resolveConfiguredModel(ctx.modelRegistry, process.env.CAPSULE_FLASH_MODEL);
+          const model = resolveConfiguredModel(ctx.modelRegistry, selectedFlashModel ?? process.env.CAPSULE_FLASH_MODEL);
           const toolOverride = process.env.CAPSULE_FLASH_TOOLS?.split(",").map(x => x.trim()).filter(Boolean);
           const settings = SettingsManager.create(ctx.cwd);
           const projectSettings = settings.getProjectSettings() as Record<string, unknown>;

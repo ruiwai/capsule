@@ -12,6 +12,9 @@ const DEFAULT_CLEANUP_MS = 5_000;
 export class CapsuleService {
   private activeOwner: symbol | undefined;
   private readonly storage: CapsuleStorage;
+  /** Includes workers whose termination/cleanup has not yet been confirmed. */
+  get isActive(): boolean { return this.activeOwner !== undefined; }
+
   constructor(private readonly backend: CapsuleBackend, private readonly options: CapsuleServiceOptions) {
     this.storage = new CapsuleStorage(options.projectRoot, options.stateRoot);
     const configured = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;

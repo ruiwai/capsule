@@ -8,11 +8,14 @@ describe("production architecture", () => {
   it("exposes only the Capsule entrypoint", () => {
     expect(Object.keys(extension)).toEqual(["default"]);
     const tools: string[] = [];
+    const commands: string[] = [];
     extension.default({
       on() {},
+      registerCommand(name: string) { commands.push(name); },
       registerTool(tool: { name: string }) { tools.push(tool.name); },
     } as any);
     expect(tools).toEqual(["delegate_capsule"]);
+    expect(commands).toEqual(["flash"]);
   });
 
   it("keeps source dependencies inside the two production modules", async () => {

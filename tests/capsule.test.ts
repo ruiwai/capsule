@@ -156,29 +156,48 @@ describe("refined Capsule lifecycle", () => {
   });
 
   it("owns the deadline, requests stop, returns once, and publishes no late yield/JIT", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    let entered!: () => void;
+    const running = new Promise<void>(resolve => { entered = resolve; });
     let stopped = 0;
     const lateBackend: CapsuleBackend = { run: input => new Promise(resolve => {
       input.signal.addEventListener("abort", () => { stopped++; setTimeout(() => resolve(settled("LATE_MARKER")), 35); }, { once: true });
+      entered();
     }) };
     const project = root(), service = new CapsuleService(lateBackend, { projectRoot: project, cleanupMs: 10 });
-    const started = Date.now();
-    const result = await service.delegate({ capsule: "hang", output_example: "x", timeout_s: 0.01 });
-    expect(Date.now() - started).toBeLessThan(150); expect(stopped).toBe(1);
-    expect(result.status).toBe("timeout"); expect(result).toHaveProperty("notes"); expect(result).not.toHaveProperty("result");
-    expect((await service.delegate({ capsule: "overlap", output_example: "x" })).status).toBe("error");
-    await new Promise(resolve => setTimeout(resolve, 70));
-    await expect(readFile(join(project, ".pi", "capsule", "jit.json"), "utf8")).rejects.toThrow();
+    expect(service.isActive).toBe(false);
+    try {
+      const pending = service.delegate({ capsule: "hang", output_example: "x", timeout_s: 0.01 });
+      // Let real filesystem setup finish before advancing the owned deadline.
+      await running;
+      await vi.advanceTimersByTimeAsync(20);
+      const result = await pending;
+      expect(stopped).toBe(1);
+      expect(result.status).toBe("timeout"); expect(result).toHaveProperty("notes"); expect(result).not.toHaveProperty("result");
+      expect(service.isActive).toBe(true);
+      expect((await service.delegate({ capsule: "overlap", output_example: "x" })).status).toBe("error");
+      await vi.advanceTimersByTimeAsync(70);
+      await vi.waitFor(() => expect(service.isActive).toBe(false));
+      await expect(readFile(join(project, ".pi", "capsule", "jit.json"), "utf8")).rejects.toThrow();
+    } finally { vi.useRealTimers(); }
   });
 
   it("bounds hanging storage after an early yield", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let entered!: () => void;
+    const retaining = new Promise<void>(resolve => { entered = resolve; });
     const service = new CapsuleService(new RecordingBackend([settled("ready")]), { projectRoot: root(), cleanupMs: 10 });
-    const retain = vi.spyOn(CapsuleStorage.prototype, "retain").mockImplementation(() => new Promise(() => {}));
+    const retain = vi.spyOn(CapsuleStorage.prototype, "retain").mockImplementation(() => { entered(); return new Promise(() => {}); });
     try {
-      const result = await service.delegate({ capsule: "work", output_example: "x", timeout_s: 0.01 });
+      const pending = service.delegate({ capsule: "work", output_example: "x", timeout_s: 0.01 });
+      await retaining;
+      await vi.advanceTimersByTimeAsync(20);
+      const result = await pending;
       expect(result.status).toBe("timeout"); expect(result).not.toHaveProperty("raw_history");
       expect((result as any).notes).toMatch(/not confirmed/);
     } finally {
       retain.mockRestore();
+      vi.useRealTimers();
     }
   });
 
@@ -263,6 +282,7 @@ describe("parent/child tool separation", () => {
     let commands = [{ source: "extension", sourceInfo: { path: "/tmp/command-extension.mjs" } }];
     const pi = {
       registerTool: (tool: any) => tools.push(tool),
+      registerCommand: vi.fn(),
       on: (name: string, handler: any) => hooks.set(name, handler),
       getSystemPrompt: () => prompt,
       getActiveTools: () => active,
@@ -318,7 +338,7 @@ describe("parent/child tool separation", () => {
       const install = () => {
         tools.length = 0;
         hooks.clear();
-        capsuleExtension({ registerTool: (tool: any) => tools.push(tool),
+        capsuleExtension({ registerTool: (tool: any) => tools.push(tool), registerCommand: vi.fn(),
           on: (name: string, handler: any) => hooks.set(name, handler) } as any);
       };
       install();
@@ -358,7 +378,7 @@ describe("parent/child tool separation", () => {
     vi.stubEnv("CAPSULE_STATE_DIR", undefined);
     vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
     try {
-      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: vi.fn() } as any);
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), registerCommand: vi.fn(), on: vi.fn() } as any);
       const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: root(),
         modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
         sessionManager: { getSessionId: () => "test-session" } };
@@ -387,7 +407,7 @@ describe("parent/child tool separation", () => {
     if (status === "cancelled") delegate.mockRejectedValue(abort);
     else delegate.mockResolvedValue({ status, notes: "stub" } as any);
     try {
-      capsuleExtension({ registerTool: (tool: any) => tools.push(tool),
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), registerCommand: vi.fn(),
         on: (name: string, handler: any) => hooks.set(name, handler) } as any);
       await hooks.get("session_start")({}, ctx);
       expect(setStatus).toHaveBeenLastCalledWith("capsule.flash", "Flash: idle · other/custom");
@@ -419,7 +439,7 @@ describe("parent/child tool separation", () => {
   });
   it("adds parent-only policy without duplicating it in the tool introduction", async () => {
     const tools: any[] = [], hooks = new Map<string, any>();
-    capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: (name: string, handler: any) => hooks.set(name, handler) } as any);
+    capsuleExtension({ registerTool: (tool: any) => tools.push(tool), registerCommand: vi.fn(), on: (name: string, handler: any) => hooks.set(name, handler) } as any);
     expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
@@ -452,7 +472,7 @@ describe("parent/child tool separation", () => {
   });
   it("blocks a later sibling until a bash_exec sleep finishes", async () => {
     const registered: any[] = [];
-    capsuleExtension({ registerTool: (tool: any) => registered.push(tool), on() {} } as any);
+    capsuleExtension({ registerTool: (tool: any) => registered.push(tool), registerCommand: vi.fn(), on() {} } as any);
     const order: string[] = [];
     const bashTool = {
       name: "bash_exec", label: "Bash sleep", description: "Test-only sleep", parameters: Type.Object({}),
@@ -538,7 +558,7 @@ describe("parent/child tool separation", () => {
     vi.stubEnv("CAPSULE_STATE_DIR", undefined);
     vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
     try {
-      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: vi.fn(), setModel } as any);
+      capsuleExtension({ registerTool: (tool: any) => tools.push(tool), registerCommand: vi.fn(), on: vi.fn(), setModel } as any);
       const ctx = { cwd: process.cwd(), modelRegistry: { find },
         sessionManager: { getSessionId: () => "test-session" }, get model() { return parentModel(); } };
       const args = { capsule: "work", output_example: "Answer briefly" };

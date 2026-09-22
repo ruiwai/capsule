@@ -10,7 +10,7 @@ describe("Flash footer", () => {
   it("uses only the custom footer in TUI mode", async () => {
     const hooks = new Map<string, any>();
     const setStatus = vi.fn(), setFooter = vi.fn();
-    capsuleExtension({ on: (name: string, handler: any) => hooks.set(name, handler), registerTool: vi.fn() } as any);
+    capsuleExtension({ on: (name: string, handler: any) => hooks.set(name, handler), registerTool: vi.fn(), registerCommand: vi.fn() } as any);
     await hooks.get("session_start")({}, { hasUI: true, mode: "tui", ui: { setStatus, setFooter } });
     expect(setStatus).not.toHaveBeenCalled();
     expect(setFooter).toHaveBeenCalledOnce();

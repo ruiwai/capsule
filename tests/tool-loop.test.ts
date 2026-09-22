@@ -108,7 +108,7 @@ it("leaves explicitly parallel unmarked batches unchanged", async () => {
 });
 
 it.each(["parent", "worker"])("%s plugin overrides parallel mode for ordinary tools", async role => {
-  const pi = { on() {}, registerTool() {} } as any;
+  const pi = { on() {}, registerTool() {}, registerCommand() {} } as any;
   if (role === "parent") capsuleExtension(pi);
   else {
     const worker = createWorkerExtension({ outputExample: "", jit: [] }, { hooksRan: false, duplicate: false });
