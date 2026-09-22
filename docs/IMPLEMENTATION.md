@@ -51,10 +51,13 @@ hard process-isolation guarantee.
 
 ## Development setup and verification
 
-The repository pins Pi 0.85.1 and requires Node >=22.19.0. Project settings load the extension only. The Pi user-selected model remains the
+The repository pins Pi 0.85.1 and requires Node >=22.19.0. The Pi user-selected model remains the
 parent agent and orchestrator; the plugin never selects or switches it. Flash defaults
-to `openai-codex/gpt-5.6-luna`; optional `CAPSULE_FLASH_MODEL=provider/model-id`
-overrides it independently. State defaults to `~/.pi/agent/capsule-sessions/session-<Pi-session-ID>/`;
+to `openai-codex/gpt-5.6-luna`; `capsuleFlashModel` in project or global Pi settings
+sets its default independently. Precedence is `/flash` (current session),
+`CAPSULE_FLASH_MODEL`, project settings, global settings, then the built-in default.
+Values must be `provider/model-id`; invalid values fail before worker setup.
+State defaults to `~/.pi/agent/capsule-sessions/session-<Pi-session-ID>/`;
 JIT and retained artifacts are scoped to that Pi session, survive resumes, and are
 not inherited by new/forked sessions. Legacy unscoped JIT is not imported.
 `CAPSULE_FLASH_TOOLS`, `CAPSULE_FLASH_TIMEOUT_MS`, and an absolute

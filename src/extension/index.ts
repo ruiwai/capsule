@@ -2,7 +2,7 @@ import { ModelSelectorComponent, SettingsManager, type ExtensionAPI, type Extens
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { DelegateCapsuleParameters, MAX_TIMER_MS, type DelegateCapsuleResult } from "../capsule/contracts.js";
-import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel, resolveConfiguredThinkingLevel, thinkingTimeoutMultiplier } from "./pi-backend.js";
+import { DEFAULT_FLASH_MODEL, PiSdkBackend, resolveConfiguredModel, resolveConfiguredModelSpec, resolveConfiguredThinkingLevel, thinkingTimeoutMultiplier } from "./pi-backend.js";
 import { CapsuleService } from "../capsule/service.js";
 import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
@@ -22,9 +22,10 @@ export default function capsuleExtension(pi: ExtensionAPI) {
   let requestFooterRender: (() => void) | undefined;
   let sessionGeneration = 0;
   let selectedFlashModel: string | undefined;
+  let defaultFlashModel = DEFAULT_FLASH_MODEL;
   const flashModel = () => workerIdentity
     ? `${workerIdentity.workerProvider}/${workerIdentity.workerModel}`
-    : (selectedFlashModel ?? process.env.CAPSULE_FLASH_MODEL ?? DEFAULT_FLASH_MODEL);
+    : (selectedFlashModel ?? process.env.CAPSULE_FLASH_MODEL ?? defaultFlashModel);
   const showFlashStatus = (ctx: ExtensionContext, state: string) => {
     workerState = state;
     // TUI uses the custom footer; other UI modes use a status row.
@@ -92,6 +93,14 @@ export default function capsuleExtension(pi: ExtensionAPI) {
     workerTelemetry = undefined;
     workerIdentity = undefined;
     requestFooterRender = undefined;
+    defaultFlashModel = DEFAULT_FLASH_MODEL;
+    try {
+      const settings = SettingsManager.create(ctx.cwd);
+      defaultFlashModel = resolveConfiguredModelSpec(
+        { ...settings.getGlobalSettings(), ...settings.getProjectSettings() }, process.env.CAPSULE_FLASH_MODEL);
+    } catch (error) {
+      if (ctx.hasUI) ctx.ui.notify(String(error), "error");
+    }
     showFlashStatus(ctx, "idle");
     installCapsuleFooter(ctx, () => workerTelemetry, render => { requestFooterRender = render; }, flashModel, () => workerState);
   });
@@ -111,13 +120,13 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           // A failed setup must not leave the previous worker's identity on its
           // fallback result.
           workerIdentity = undefined;
-          const model = resolveConfiguredModel(ctx.modelRegistry, selectedFlashModel ?? process.env.CAPSULE_FLASH_MODEL);
           const toolOverride = process.env.CAPSULE_FLASH_TOOLS?.split(",").map(x => x.trim()).filter(Boolean);
           const settings = SettingsManager.create(ctx.cwd);
-          const projectSettings = settings.getProjectSettings() as Record<string, unknown>;
-          const globalSettings = settings.getGlobalSettings() as Record<string, unknown>;
+          const flashSettings = { ...settings.getGlobalSettings(), ...settings.getProjectSettings() };
+          const model = resolveConfiguredModel(ctx.modelRegistry, selectedFlashModel ?? resolveConfiguredModelSpec(
+            flashSettings, process.env.CAPSULE_FLASH_MODEL));
           const thinkingLevel = resolveConfiguredThinkingLevel(
-            { ...globalSettings, ...projectSettings }, process.env.CAPSULE_FLASH_THINKING_LEVEL);
+            flashSettings, process.env.CAPSULE_FLASH_THINKING_LEVEL);
           workerIdentity = { workerProvider: model.provider, workerModel: model.id };
           const configuredStateRoot = process.env.CAPSULE_STATE_DIR;
           if (configuredStateRoot && !isAbsolute(configuredStateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");

@@ -209,9 +209,18 @@ export function thinkingTimeoutMultiplier(level: FlashThinkingLevel): number {
   return level === "high" ? HIGH_THINKING_TIMEOUT_MULTIPLIER : 1;
 }
 
+export function resolveConfiguredModelSpec(settings: unknown, environmentValue?: string): string {
+  const configured = environmentValue ?? (settings && typeof settings === "object"
+    ? (settings as { capsuleFlashModel?: unknown }).capsuleFlashModel : undefined);
+  if (configured === undefined) return DEFAULT_FLASH_MODEL;
+  if (typeof configured !== "string" || !/^[^/\s]+\/\S+$/.test(configured)) {
+    throw Error("configuration_required: capsuleFlashModel / CAPSULE_FLASH_MODEL must be provider/model-id");
+  }
+  return configured;
+}
+
 export function resolveConfiguredModel(registry: ModelRegistry, spec: string | undefined): PiModel {
-  const selected = spec ?? DEFAULT_FLASH_MODEL;
-  if (!selected.includes("/")) throw Error("configuration_required: CAPSULE_FLASH_MODEL must be provider/model-id");
+  const selected = resolveConfiguredModelSpec(undefined, spec);
   const slash = selected.indexOf("/"), provider = selected.slice(0, slash), id = selected.slice(slash + 1);
   const model = registry.find(provider, id);
   if (!model) throw Error(`configuration_required: Flash model not found: ${selected}`);

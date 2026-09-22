@@ -97,7 +97,10 @@ In Pi's TUI, expand a result to see retained notes and history paths.
 ## Configure
 
 Capsule never switches the parent model. Flash defaults to
-`openai-codex/gpt-5.6-luna`; choose a worker model available to your Pi account:
+`openai-codex/gpt-5.6-luna`. Set `"capsuleFlashModel": "provider/model-id"`
+in project `.pi/settings.json` or global `~/.pi/agent/settings.json` (merge
+with existing settings). Project settings override global settings. Choose a
+worker model available to your Pi account. The environment overrides both:
 
 ```sh
 export CAPSULE_FLASH_MODEL='provider/model-id'
@@ -105,8 +108,8 @@ export CAPSULE_FLASH_MODEL='provider/model-id'
 
 Use `/flash` to open the same model picker as `/model`, or
 `/flash provider/model-id` to select directly. This overrides the environment
-default for subsequent delegations in the current session without changing the
-parent model. The selection resets on session start/resume; cancel leaves it unchanged.
+and settings defaults for subsequent delegations in the current session without
+changing the parent model. The selection resets on session start/resume; cancel leaves it unchanged.
 Change models while the agent is idle and Flash cleanup has completed.
 Outside the TUI, use the direct form.
 
