@@ -283,7 +283,7 @@ describe("parent/child tool separation", () => {
       capsuleExtension(pi as any);
       const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: project,
         modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
-        getSystemPrompt: () => prompt };
+        sessionManager: { getSessionId: () => "test-session" }, getSystemPrompt: () => prompt };
       const delegate = tools[0];
       await delegate.execute("one", { capsule: "first", output_example: "x" }, undefined, undefined, ctx);
       prompt = "PARENT_PROMPT_TWO"; active = ["bash", "write", "delegate_capsule", "yield"];
@@ -303,6 +303,54 @@ describe("parent/child tool separation", () => {
     }
   });
 
+  it("isolates JIT by Pi session and restores it on resume without importing global history", async () => {
+    const project = root(), state = root();
+    const tools: any[] = [], hooks = new Map<string, any>();
+    let revision = 0;
+    const run = vi.spyOn(PiSdkBackend.prototype, "run").mockImplementation(async () => settled("session", {
+      ...handoff, JITed_history: [{ topic: "project-tests", content: `Session lesson revision ${++revision}` }],
+    }));
+    vi.stubEnv("CAPSULE_STATE_DIR", state);
+    vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
+    // An invalid legacy store would fail delegation if it were read.
+    await writeFile(join(state, "jit.json"), "legacy-global-store");
+    try {
+      const install = () => {
+        tools.length = 0;
+        hooks.clear();
+        capsuleExtension({ registerTool: (tool: any) => tools.push(tool),
+          on: (name: string, handler: any) => hooks.set(name, handler) } as any);
+      };
+      install();
+      const context = (id: string) => ({ hasUI: false, mode: "print", cwd: project,
+        sessionManager: { getSessionId: () => id },
+        modelRegistry: { find: (provider: string, model: string) => ({ provider, id: model }) } });
+      const execute = async (id: string, start = true) => {
+        const ctx = context(id);
+        if (start) await hooks.get("session_start")({}, ctx);
+        const result = await tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
+        expect(JSON.parse(result.content[0].text).status).toBe("completed");
+        return run.mock.calls.at(-1)![0].jit;
+      };
+      expect(await execute("first")).toEqual([]);
+      expect(await execute("first", false)).toMatchObject([
+        { topic: "project-tests", content: "Session lesson revision 1" },
+      ]);
+      expect(await execute("second")).toEqual([]);
+      // Recreate the extension too: resume must rely on disk, not in-memory state.
+      install();
+      expect(await execute("first")).toMatchObject([
+        { topic: "project-tests", content: "Session lesson revision 2" },
+      ]);
+      expect(await readFile(join(state, "jit.json"), "utf8")).toBe("legacy-global-store");
+      await access(join(state, "session-first", "jit.json"));
+      await access(join(state, "session-second", "jit.json"));
+    } finally {
+      run.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("defaults extension state to the user-level capsule sessions directory", async () => {
     const tools: any[] = [];
     const delegate = vi.spyOn(CapsuleService.prototype, "delegate")
@@ -312,10 +360,11 @@ describe("parent/child tool separation", () => {
     try {
       capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: vi.fn() } as any);
       const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: root(),
-        modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) } };
+        modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
+        sessionManager: { getSessionId: () => "test-session" } };
       await tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
       const service = delegate.mock.instances[0] as any;
-      const expected = join(homedir(), ".pi", "agent", "capsule-sessions");
+      const expected = join(homedir(), ".pi", "agent", "capsule-sessions", "session-test-session");
       expect(service.storage.stateRoot).toBe(expected);
       expect(service.backend.options.stateDir).toBe(join(expected, "worker-sessions"));
     } finally {
@@ -328,6 +377,7 @@ describe("parent/child tool separation", () => {
     const tools: any[] = [], hooks = new Map<string, any>();
     const setStatus = vi.fn();
     const ctx = { hasUI: true, ui: { setStatus }, cwd: process.cwd(),
+      sessionManager: { getSessionId: () => "test-session" },
       modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) } };
     vi.stubEnv("CAPSULE_FLASH_MODEL", "other/custom");
     vi.stubEnv("CAPSULE_STATE_DIR", undefined);
@@ -489,7 +539,8 @@ describe("parent/child tool separation", () => {
     vi.stubEnv("CAPSULE_FLASH_TIMEOUT_MS", undefined);
     try {
       capsuleExtension({ registerTool: (tool: any) => tools.push(tool), on: vi.fn(), setModel } as any);
-      const ctx = { cwd: process.cwd(), modelRegistry: { find }, get model() { return parentModel(); } };
+      const ctx = { cwd: process.cwd(), modelRegistry: { find },
+        sessionManager: { getSessionId: () => "test-session" }, get model() { return parentModel(); } };
       const args = { capsule: "work", output_example: "Answer briefly" };
       await tools[0].execute("delegate-1", args, undefined, undefined, ctx);
       expect(find).toHaveBeenCalledExactlyOnceWith(...(configured ?? DEFAULT_FLASH_MODEL).split("/"));

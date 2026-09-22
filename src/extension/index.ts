@@ -68,7 +68,13 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           workerIdentity = { workerProvider: model.provider, workerModel: model.id };
           const configuredStateRoot = process.env.CAPSULE_STATE_DIR;
           if (configuredStateRoot && !isAbsolute(configuredStateRoot)) throw Error("configuration_required: CAPSULE_STATE_DIR must be absolute");
-          const stateRoot = configuredStateRoot || DEFAULT_CAPSULE_STATE_DIR;
+          // Persist across resumes, but never share lessons with another Pi session.
+          const sessionId = ctx.sessionManager.getSessionId();
+          if (!sessionId) throw Error("configuration_required: Capsule requires a Pi session ID");
+          const stateRoot = join(
+            configuredStateRoot || DEFAULT_CAPSULE_STATE_DIR,
+            `session-${encodeURIComponent(sessionId)}`,
+          );
           const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
           if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_FLASH_TIMEOUT_MS must be a representable positive integer");
           const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: join(stateRoot, "worker-sessions"),

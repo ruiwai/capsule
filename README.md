@@ -123,11 +123,13 @@ except delegation. File-backed extensions identified by Pi's tool/command
 metadata are reloaded; hook-only and inline extension hooks cannot be cloned.
 `CAPSULE_FLASH_TOOLS` overrides the inherited tool list.
 
-Capsule state defaults to `~/.pi/agent/capsule-sessions`, with retained JSONL
-transcripts in its `episodes/` directory and raw Pi sessions in
-`worker-sessions/`, regardless of the directory from which Pi is launched.
+Capsule state defaults to `~/.pi/agent/capsule-sessions/session-<Pi-session-ID>/`,
+with JIT in `jit.json`, retained JSONL transcripts in `episodes/`, and raw Pi
+worker sessions in `worker-sessions/`. JIT is shared only within the same Pi
+session (including resumes); new and forked sessions start with separate history.
+Existing unscoped JIT is not imported. Project-context freshness checks still apply.
 `CAPSULE_STATE_DIR` can override the root with another absolute path readable by
-the parent agent.
+the parent agent; the session-specific subdirectory is always appended.
 
 ## Development
 
