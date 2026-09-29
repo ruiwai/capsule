@@ -5,7 +5,7 @@ import { Type } from "typebox";
 export const SEQUENTIAL_TOOL = "capsule_sequential_barrier";
 const BARRIER_ID_PREFIX = "capsule-barrier-";
 
-function isInjectedBarrier(name: string, id: string): boolean {
+export function isInjectedBarrier(name: string, id: string): boolean {
   return name === SEQUENTIAL_TOOL && id.startsWith(BARRIER_ID_PREFIX);
 }
 
@@ -17,7 +17,8 @@ type ToolDetails = {
   status?: string;
 };
 
-export function installToolExecutionPolicy(pi: ExtensionAPI) {
+// Only omit the barrier for tools the caller registers as sequential in this session.
+export function installToolExecutionPolicy(pi: ExtensionAPI, sequentialTools: readonly string[] = ["delegate_capsule"]) {
   pi.registerTool({
     name: SEQUENTIAL_TOOL, label: "Capsule sequential barrier",
     description: "Internal Capsule scheduling no-op; do not call directly.",
@@ -59,7 +60,10 @@ export function installToolExecutionPolicy(pi: ExtensionAPI) {
     if (message.role === "assistant" && message.stopReason !== "error"
       && message.stopReason !== "aborted" && message.stopReason !== "length"
       && message.content.some(block => block.type === "toolCall")
-      && !message.content.some(block => block.type === "toolCall" && block.name === SEQUENTIAL_TOOL)) {
+      && !message.content.some(block => block.type === "toolCall"
+        && (block.name === SEQUENTIAL_TOOL || sequentialTools.includes(block.name)))) {
+      // Already-sequential tools need no barrier. In particular a barrier would
+      // prevent yield termination: Pi requires every result in a batch to terminate.
       // Prepend so the no-op completes before a real failure can latch blocking.
       // No injection into text-only replies: that would cause endless extra turns.
       return { message: { ...message, content: [{ type: "toolCall" as const,

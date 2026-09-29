@@ -1,9 +1,10 @@
 import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, type ExtensionAPI, type InlineExtension, type ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { mkdir } from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 import { Type } from "typebox";
 import { YieldParameters, validateYield, type YieldArgs } from "../capsule/contracts.js";
 import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
-import { installToolExecutionPolicy, SEQUENTIAL_TOOL } from "./tool-policy.js";
+import { installToolExecutionPolicy, isInjectedBarrier, SEQUENTIAL_TOOL } from "./tool-policy.js";
 
 import type { BackendOutcome, CapsuleBackend, TranscriptRecord } from "../capsule/worker.js";
 
@@ -25,7 +26,44 @@ export type PiBackendOptions = {
   parentContext?: () => ParentWorkerContext;
 };
 
-export type WorkerHandoffState = { packet?: YieldArgs; hooksRan: boolean; duplicate: boolean };
+export type WorkerHandoffState = { packet?: YieldArgs; callId?: string; hooksRan: boolean; duplicate: boolean };
+
+type HandoffBlock = { type: string; name?: string; id?: string; arguments?: unknown };
+type HandoffMessage = {
+  role: string; content?: string | readonly HandoffBlock[]; stopReason?: string;
+  toolCallId?: string; toolName?: string; isError?: boolean;
+};
+
+/** Scheduling metadata is retained in session history, but is not a worker action. */
+export function isSoleYield(content: readonly HandoffBlock[] = []): boolean {
+  const calls = content.filter(block => block.type === "toolCall"
+    && !isInjectedBarrier(block.name ?? "", block.id ?? ""));
+  return calls.length === 1 && calls[0]!.name === "yield";
+}
+
+/** Validate the handoff turn and its successful result, not a trailing acknowledgment. */
+export function validHandoff(messages: readonly HandoffMessage[], state: WorkerHandoffState): boolean {
+  if (!state.hooksRan || !state.packet || !state.callId || state.duplicate) return false;
+  let yielded = false, succeeded = false;
+  for (const message of messages) {
+    if (message.role === "assistant") {
+      if (["error", "aborted", "length"].includes(message.stopReason ?? "")) return false;
+      const content = typeof message.content === "string" ? [] : message.content ?? [];
+      const calls = content.filter(block => block.type === "toolCall"
+        && !isInjectedBarrier(block.name ?? "", block.id ?? ""));
+      if (yielded && calls.length) return false;
+      if (calls.some(call => call.name === "yield")) {
+        if (calls.length !== 1 || calls[0]!.id !== state.callId
+          || !isDeepStrictEqual(calls[0]!.arguments, state.packet)) return false;
+        yielded = true;
+      }
+    } else if (message.role === "toolResult" && message.toolCallId === state.callId) {
+      if (!yielded || succeeded || message.toolName !== "yield" || message.isError) return false;
+      succeeded = true;
+    }
+  }
+  return yielded && succeeded;
+}
 
 /** Worker-only extension factory, exported so its real hook/tool boundary can be tested. */
 export function createWorkerExtension(
@@ -33,7 +71,13 @@ export function createWorkerExtension(
   state: WorkerHandoffState,
 ): InlineExtension {
   return (pi: ExtensionAPI) => {
-    installToolExecutionPolicy(pi);
+    installToolExecutionPolicy(pi, ["yield"]);
+    pi.on("tool_call", event => {
+      if (state.packet && !isInjectedBarrier(event.toolName, event.toolCallId)) {
+        if (event.toolName === "yield") state.duplicate = true;
+        return { block: true, reason: "Worker already yielded; no further tool execution is allowed." };
+      }
+    });
     pi.on("before_agent_start", async event => {
       state.hooksRan = true;
       // This factory runs last: prompt-replacing extensions (such as poor) must
@@ -66,10 +110,11 @@ export function createWorkerExtension(
       description: "End with yield as the sole final tool call; do not continue. Use completed + result for an established answer, including failed checks; blocked + notes for missing prerequisites or required parent input. Always include JITed_history.",
       parameters: YieldParameters,
       executionMode: "sequential",
-      async execute(_id, args) {
+      async execute(callId, args) {
         validateYield(args);
         if (state.packet) { state.duplicate = true; throw Error("duplicate terminal yield"); }
         state.packet = structuredClone(args);
+        state.callId = callId;
         return { content: [{ type: "text", text: "Handoff recorded." }], details: {}, terminate: true };
       },
     });
@@ -169,13 +214,9 @@ export class PiSdkBackend implements CapsuleBackend {
         return { kind: "interrupted", records, hooksRan: handoff.hooksRan, cleanupConfirmed: confirmed,
           notes: confirmed ? "Worker termination completed." : "Worker idle settlement and abort were not confirmed during cleanup." };
       }
-      const assistants = session.messages.filter((m: any) => m.role === "assistant");
-      const last: any = assistants.at(-1);
-      const calls = (last?.content ?? []).filter((p: any) => p.type === "toolCall");
-      const soleYield = calls.length === 1 && calls[0].name === "yield";
       if (!handoff.hooksRan) return { kind: "error", records, hooksRan: false, notes: "Worker settled without running the Capsule child hook; no handoff was published." };
-      if (handoff.duplicate || handoff.packet && !soleYield) return { kind: "error", records, hooksRan: handoff.hooksRan, notes: "Worker yield was duplicated or mixed with other final tool calls; no handoff was published." };
       if (!handoff.packet) return { kind: "error", records, hooksRan: handoff.hooksRan, notes: "Worker settled without a valid yield tool call." };
+      if (!validHandoff(session.messages, handoff)) return { kind: "error", records, hooksRan: handoff.hooksRan, notes: "Worker handoff was duplicated, mixed with other tools, followed by more tool calls, or not successfully finalized; no handoff was published." };
       return { kind: "settled", yield: handoff.packet, records, hooksRan: handoff.hooksRan };
     } catch (error) {
       if (input.signal.aborted) {

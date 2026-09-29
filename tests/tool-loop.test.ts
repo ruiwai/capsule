@@ -188,7 +188,7 @@ it.each(["parent", "worker"])("%s plugin installs local policy hooks, not a para
     await (typeof worker === "function" ? worker : worker.factory)(hooks.pi);
   }
   for (const event of ["turn_start", "message_end", "tool_call", "tool_result"]) {
-    expect(hooks.handlers.get(event)).toHaveLength(1);
+    expect(hooks.handlers.get(event)).toHaveLength(role === "worker" && event === "tool_call" ? 2 : 1);
   }
   // This raw loop ignores the runner's message replacement and registered barrier.
   const failure = await run("throw", "sequential", "middle", hooks);
@@ -261,6 +261,17 @@ it("injects one leading barrier for tool replies, and leaves text-only and unsuc
   for (const stopReason of ["stop", "error", "aborted", "length"]) {
     const content = stopReason === "stop" ? [{ type: "text", text: "done" }] : [call];
     expect(await hooks.dispatch("message_end", { message: { ...assistant, content, stopReason } })).toBeUndefined();
+  }
+});
+
+it("does not inject a redundant barrier into parent delegation batches", async () => {
+  const hooks = installedPolicy();
+  const delegate = { type: "toolCall", id: "delegate", name: "delegate_capsule", arguments: {} };
+  const ordinary = { type: "toolCall", id: "ordinary", name: "first", arguments: { n: 1 } };
+  for (const content of [[delegate], [ordinary, delegate]]) {
+    expect(await hooks.dispatch("message_end", {
+      message: { role: "assistant", stopReason: "toolUse", content },
+    })).toBeUndefined();
   }
 });
 
