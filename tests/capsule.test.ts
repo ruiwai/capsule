@@ -7,14 +7,15 @@ import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import { Type } from "typebox";
-import { DefaultResourceLoader, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { DefaultResourceLoader, getAgentDir, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { agentLoop } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-agent-core/dist/index.js";
 import { AssistantMessageEventStream } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/utils/event-stream.js";
 import capsuleExtension from "../src/extension/index.js";
+import { SEQUENTIAL_TOOL } from "../src/extension/tool-policy.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, DELEGATION_EXAMPLES, PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../src/capsule/prompts.js";
 import { DelegateCapsuleParameters, validateDelegate, validateYield, type YieldArgs } from "../src/capsule/contracts.js";
 import { CapsuleService } from "../src/capsule/service.js";
-import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, HIGH_THINKING_TIMEOUT_MULTIPLIER, PiSdkBackend, XHIGH_THINKING_TIMEOUT_MULTIPLIER, createWorkerExtension, resolveConfiguredModel, resolveConfiguredThinkingLevel, thinkingTimeoutMultiplier } from "../src/extension/pi-backend.js";
+import { DEFAULT_FLASH_MODEL, DEFAULT_FLASH_THINKING_LEVEL, FLASH_THINKING_LEVELS, HIGH_THINKING_TIMEOUT_MULTIPLIER, PiSdkBackend, XHIGH_THINKING_TIMEOUT_MULTIPLIER, createWorkerExtension, resolveConfiguredModel, resolveConfiguredModelSpec, resolveConfiguredThinkingLevel, thinkingTimeoutMultiplier } from "../src/extension/pi-backend.js";
 import type { BackendOutcome, CapsuleBackend } from "../src/capsule/worker.js";
 import { CapsuleStorage } from "../src/capsule/storage.js";
 
@@ -259,7 +260,8 @@ describe("parent/child tool separation", () => {
     expect(extensions.at(-1)?.tools.has("yield")).toBe(true);
     let effective = `BASE_PARENT\n\n${PARENT_CAPSULE_PROMPT}`;
     for (const extension of extensions) {
-      for (const handler of extension.handlers.get("before_agent_start") ?? []) {
+      // Resource-loader actions are not initialized here; inspect only the worker prompt hook.
+      for (const handler of (extension.handlers.get("before_agent_start") ?? []).slice(-1)) {
         const result: any = await handler({ systemPrompt: effective } as any, undefined as any);
         if (result?.systemPrompt !== undefined) effective = result.systemPrompt;
       }
@@ -304,7 +306,7 @@ describe("parent/child tool separation", () => {
       const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: project,
         modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
         sessionManager: { getSessionId: () => "test-session" }, getSystemPrompt: () => prompt };
-      const delegate = tools[0];
+      const delegate = tools.find(tool => tool.name === "delegate_capsule")!;
       await delegate.execute("one", { capsule: "first", output_example: "x" }, undefined, undefined, ctx);
       prompt = "PARENT_PROMPT_TWO"; active = ["bash", "write", "delegate_capsule", "yield"];
       configured = [{ name: "bash", sourceInfo: { path: "/tmp/bash-extension.mjs" } },
@@ -348,7 +350,7 @@ describe("parent/child tool separation", () => {
       const execute = async (id: string, start = true) => {
         const ctx = context(id);
         if (start) await hooks.get("session_start")({}, ctx);
-        const result = await tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
+        const result = await tools.find(tool => tool.name === "delegate_capsule")!.execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
         expect(JSON.parse(result.content[0].text).status).toBe("completed");
         return run.mock.calls.at(-1)![0].jit;
       };
@@ -382,7 +384,7 @@ describe("parent/child tool separation", () => {
       const ctx = { hasUI: false, mode: "print", ui: { setStatus: vi.fn() }, cwd: root(),
         modelRegistry: { find: (provider: string, id: string) => ({ provider, id }) },
         sessionManager: { getSessionId: () => "test-session" } };
-      await tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
+      await tools.find(tool => tool.name === "delegate_capsule")!.execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
       const service = delegate.mock.instances[0] as any;
       const expected = join(homedir(), ".pi", "agent", "capsule-sessions", "session-test-session");
       expect(service.storage.stateRoot).toBe(expected);
@@ -411,7 +413,7 @@ describe("parent/child tool separation", () => {
         on: (name: string, handler: any) => hooks.set(name, handler) } as any);
       await hooks.get("session_start")({}, ctx);
       expect(setStatus).toHaveBeenLastCalledWith("capsule.flash", "Flash: idle · other/custom");
-      const result = tools[0].execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
+      const result = tools.find(tool => tool.name === "delegate_capsule")!.execute("id", { capsule: "work", output_example: "answer" }, undefined, undefined, ctx);
       if (status === "cancelled") await expect(result).rejects.toBe(abort);
       else await result;
       expect(setStatus.mock.calls.map(call => call[1])).toEqual([
@@ -440,11 +442,11 @@ describe("parent/child tool separation", () => {
   it("adds parent-only policy without duplicating it in the tool introduction", async () => {
     const tools: any[] = [], hooks = new Map<string, any>();
     capsuleExtension({ registerTool: (tool: any) => tools.push(tool), registerCommand: vi.fn(), on: (name: string, handler: any) => hooks.set(name, handler) } as any);
-    expect(tools.map(x => x.name)).toEqual(["delegate_capsule"]);
+    expect(tools.map(x => x.name)).toEqual([SEQUENTIAL_TOOL, "delegate_capsule"]);
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
     expect(injected.systemPrompt).toBe(`base\n\n${PARENT_CAPSULE_PROMPT}`);
-    expect(injected.systemPrompt).toContain("Sequential batches stop at the first tool error");
-    expect(injected.systemPrompt).toContain("remaining calls are reported skipped, not executed");
+    expect(injected.systemPrompt).toContain("The first tool error blocks subsequent tool execution");
+    expect(injected.systemPrompt).toContain("Capsule serializes tool-call batches");
     expect(injected.systemPrompt).toContain("Speculatively batch known-argument calls");
     expect(injected.systemPrompt).toContain("apply_patch followed by bash_exec to test it");
     expect(injected.systemPrompt).toContain("intermediate result requires a decision or branch");
@@ -460,17 +462,18 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("completed can be negative");
     expect(injected.systemPrompt).toContain("Do not overlap delegate_capsule calls");
     expect(injected.systemPrompt).not.toContain(WORKER_CAPSULE_PROMPT);
-    expect(tools[0].description).not.toContain(PARENT_CAPSULE_PROMPT);
-    expect(tools[0].executionMode).toBe("sequential");
-    expect(tools[0].description.split(JSON.stringify(DELEGATION_EXAMPLES[0]!.args))).toHaveLength(2);
+    const delegate = tools.find(tool => tool.name === "delegate_capsule")!;
+    expect(delegate.description).not.toContain(PARENT_CAPSULE_PROMPT);
+    expect(delegate.executionMode).toBe("sequential");
+    expect(delegate.description.split(JSON.stringify(DELEGATION_EXAMPLES[0]!.args))).toHaveLength(2);
     for (const { args } of DELEGATION_EXAMPLES.slice(1))
-      expect(tools[0].description).not.toContain(JSON.stringify(args));
-    expect(PARENT_CAPSULE_PROMPT.length + tools[0].description.length
-      + JSON.stringify(tools[0].parameters).length).toBeLessThan(2500);
+      expect(delegate.description).not.toContain(JSON.stringify(args));
+    expect(PARENT_CAPSULE_PROMPT.length + delegate.description.length
+      + JSON.stringify(delegate.parameters).length).toBeLessThan(2500);
     expect(injected.systemPrompt).not.toContain("JITed_history");
-    expect(tools[0].description).not.toContain("JITed_history");
+    expect(delegate.description).not.toContain("JITed_history");
   });
-  it("blocks a later sibling until a bash_exec sleep finishes", async () => {
+  it("serializes an ordinary call beside the explicitly sequential delegate in the raw agent loop", async () => {
     const registered: any[] = [];
     capsuleExtension({ registerTool: (tool: any) => registered.push(tool), registerCommand: vi.fn(), on() {} } as any);
     const order: string[] = [];
@@ -478,13 +481,13 @@ describe("parent/child tool separation", () => {
       name: "bash_exec", label: "Bash sleep", description: "Test-only sleep", parameters: Type.Object({}),
       async execute() {
         order.push("bash:start");
-        await execFileAsync("bash", ["-c", "sleep 5"]);
+        await execFileAsync("bash", ["-c", "sleep 0.05"]);
         order.push("bash:end");
         return { content: [{ type: "text" as const, text: "slept" }], details: {}, terminate: true };
       },
     };
     const delegateTool = {
-      ...registered[0],
+      ...registered.find(tool => tool.name === "delegate_capsule")!,
       async execute() {
         order.push("delegate:start");
         return { content: [{ type: "text" as const, text: "delegated" }], details: {}, terminate: true };
@@ -537,16 +540,19 @@ describe("parent/child tool separation", () => {
     expect(injected.systemPrompt).toContain("Use [] if none");
     expect(injected.systemPrompt).not.toContain(PARENT_CAPSULE_PROMPT);
     expect(injected.systemPrompt).not.toContain("sole final tool call");
-    expect(tools.map(x => x.name)).toEqual(["list_lesson_topic", "fetch_lesson", "yield"]);
-    const listed = await tools[0].execute("list", {});
+    expect(tools.map(x => x.name)).toEqual([SEQUENTIAL_TOOL, "list_lesson_topic", "fetch_lesson", "yield"]);
+    const list = tools.find(tool => tool.name === "list_lesson_topic")!;
+    const fetch = tools.find(tool => tool.name === "fetch_lesson")!;
+    const yieldTool = tools.find(tool => tool.name === "yield")!;
+    const listed = await list.execute("list", {});
     expect(JSON.parse(listed.content[0].text)).toEqual({ topics: ["alpha-setup", "project-tests"] });
-    const fetched = await tools[1].execute("fetch", { topic: "project-tests" });
+    const fetched = await fetch.execute("fetch", { topic: "project-tests" });
     expect(JSON.parse(fetched.content[0].text)).toEqual({ topic: "project-tests", content: lesson, raw_history: "/project/episode.jsonl" });
-    await expect(tools[1].execute("missing", { topic: "unknown" })).rejects.toThrow(/lesson_not_found/);
-    expect(tools[2].description).toContain("sole final tool call");
-    expect(tools[2].executionMode).toBe("sequential");
-    expect((await tools[2].execute("yield-1", handoff)).terminate).toBe(true);
-    await expect(tools[2].execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
+    await expect(fetch.execute("missing", { topic: "unknown" })).rejects.toThrow(/lesson_not_found/);
+    expect(yieldTool.description).toContain("sole final tool call");
+    expect(yieldTool.executionMode).toBe("sequential");
+    expect((await yieldTool.execute("yield-1", handoff)).terminate).toBe(true);
+    await expect(yieldTool.execute("yield-2", handoff)).rejects.toThrow(/duplicate/);
   });
   it.each([undefined, "other/custom"])("keeps parent model ownership with Flash configured as %s", async configured => {
     const tools: any[] = [], setModel = vi.fn();
@@ -562,8 +568,10 @@ describe("parent/child tool separation", () => {
       const ctx = { cwd: process.cwd(), modelRegistry: { find },
         sessionManager: { getSessionId: () => "test-session" }, get model() { return parentModel(); } };
       const args = { capsule: "work", output_example: "Answer briefly" };
-      await tools[0].execute("delegate-1", args, undefined, undefined, ctx);
-      expect(find).toHaveBeenCalledExactlyOnceWith(...(configured ?? DEFAULT_FLASH_MODEL).split("/"));
+      await tools.find(tool => tool.name === "delegate_capsule")!.execute("delegate-1", args, undefined, undefined, ctx);
+      const settings = SettingsManager.create(ctx.cwd);
+      const spec = configured ?? resolveConfiguredModelSpec({ ...settings.getGlobalSettings(), ...settings.getProjectSettings() });
+      expect(find).toHaveBeenCalledExactlyOnceWith(...spec.split("/"));
       expect(delegate).toHaveBeenCalledExactlyOnceWith(args, undefined);
       expect(setModel).not.toHaveBeenCalled();
       expect(parentModel).not.toHaveBeenCalled();

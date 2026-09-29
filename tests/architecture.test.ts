@@ -14,7 +14,7 @@ describe("production architecture", () => {
       registerCommand(name: string) { commands.push(name); },
       registerTool(tool: { name: string }) { tools.push(tool.name); },
     } as any);
-    expect(tools).toEqual(["delegate_capsule"]);
+    expect(tools).toEqual(["capsule_sequential_barrier", "delegate_capsule"]);
     expect(commands).toEqual(["flash"]);
   });
 

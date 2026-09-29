@@ -1,8 +1,39 @@
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 import { renderCapsuleCall, renderCapsuleResult } from "../src/extension/renderer.js";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { installToolExecutionPolicy, SEQUENTIAL_TOOL } from "../src/extension/tool-policy.js";
 
 initTheme("dark");
+
+it("hides the barrier throughout real Pi tool rendering without blank spacing", async () => {
+  const root = dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent")));
+  const { ToolExecutionComponent } = await import(pathToFileURL(join(root,
+    "modes/interactive/components/tool-execution.js")).href);
+  let definition: any;
+  installToolExecutionPolicy({ on() {}, registerTool(tool: any) { definition = tool; } } as any);
+  expect(definition.name).toBe(SEQUENTIAL_TOOL);
+  const component = new ToolExecutionComponent(SEQUENTIAL_TOOL, "capsule-barrier-test", {}, {},
+    definition, { requestRender() {} }, process.cwd());
+  const hidden = () => {
+    for (const width of [20, 80]) expect(component.render(width)).toEqual([]);
+  };
+  hidden();
+  component.setArgsComplete();
+  component.markExecutionStarted();
+  hidden();
+  for (const isError of [false, true]) {
+    for (const partial of [true, false]) {
+      component.updateResult({ content: [{ type: "text", text: "internal result" }], details: {}, isError }, partial);
+      hidden();
+      component.setExpanded(true);
+      component.invalidate();
+      hidden();
+      component.setExpanded(false);
+    }
+  }
+});
 
 const theme = {
   fg: (_name: string, value: string) => value,

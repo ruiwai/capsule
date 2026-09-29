@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { Type } from "typebox";
 import { YieldParameters, validateYield, type YieldArgs } from "../capsule/contracts.js";
 import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
-import { installToolExecutionPolicy } from "./tool-policy.js";
+import { installToolExecutionPolicy, SEQUENTIAL_TOOL } from "./tool-policy.js";
 
 import type { BackendOutcome, CapsuleBackend, TranscriptRecord } from "../capsule/worker.js";
 
@@ -111,7 +111,7 @@ export class PiSdkBackend implements CapsuleBackend {
     const manager = SessionManager.create(this.options.cwd, this.options.stateDir);
     const creating = createAgentSession({ cwd: this.options.cwd, model: this.options.model,
       thinkingLevel: this.options.thinkingLevel ?? DEFAULT_FLASH_THINKING_LEVEL,
-      tools: [...new Set([...(parent?.tools ?? this.options.tools), "list_lesson_topic", "fetch_lesson", "yield"])],
+      tools: [...new Set([...(parent?.tools ?? this.options.tools), SEQUENTIAL_TOOL, "list_lesson_topic", "fetch_lesson", "yield"])],
       excludeTools: ["delegate_capsule"],
       resourceLoader: loader, sessionManager: manager });
     const created = await stage(creating);

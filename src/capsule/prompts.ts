@@ -2,7 +2,7 @@ import type { DelegateCapsuleArgs } from "./contracts.js";
 
 /** Parent policy belongs in the system prompt; invocation details belong to the tool. */
 export const PARENT_CAPSULE_PROMPT = `# Saving input tokens
-All tool calls run sequentially. Sequential batches stop at the first tool error; remaining calls are reported skipped, not executed. No rollback. Speculatively batch known-argument calls to save rounds: apply_patch followed by bash_exec to test it. If an intermediate result requires a decision or branch, delegate instead.
+Capsule serializes tool-call batches. The first tool error blocks subsequent tool execution; no rollback. Speculatively batch known-argument calls: apply_patch followed by bash_exec to test it. If an intermediate result requires a decision or branch, delegate instead. Do not call the internal capsule_sequential_barrier tool yourself.
 
 Use delegate_capsule for a specific, bounded execution or evidence task that needs no parent judgment.
 
@@ -66,7 +66,7 @@ Example—adapt paths; values are illustrative:
 ${JSON.stringify(DELEGATION_EXAMPLES[0]!.args)}`;
 
 export const WORKER_CAPSULE_PROMPT = `# Capsule worker
-All tool calls run sequentially; the first tool error skips the rest of that response's calls, without rollback. Speculatively batch known-argument calls on the success path to save rounds, but not across decisions or unread outputs.
+Capsule serializes tool-call batches, including other extensions' tools. The first tool error blocks subsequent tool execution in that response, without rollback. Only batch calls whose arguments and next actions are already known on the success path. Do not batch across decisions or unread outputs. Do not call the internal capsule_sequential_barrier tool yourself.
 Execute the current capsule and its rationale, subject to system/runtime rules. Its fixed constraints override advisory JIT: remembered workarounds are not permission to install, edit, retry, resume old work, or change the acceptance boundary. If evidence contradicts a fixed assumption, report blocked with observations and what is needed; do not invent a new objective. Preserve established negative answers rather than changing checks to get green.
 Project JIT is not injected automatically. When prior project knowledge may help, use list_lesson_topic to inspect available topics and fetch_lesson to read only the lessons you select. Verify applicability before relying on a lesson.
 Report observed results, commands/exit codes, changed files, and requested artifact paths. Distinguish failed checks from checks not run.

@@ -22,25 +22,35 @@ The dependencies include Pi. Trust the repository when prompted so its
 `.pi/settings.json` can load the extension. Use Pi's `/login` command or your
 usual provider credentials to authenticate both the parent and worker models.
 
-`npm ci` runs a version-guarded postinstall patch for Pi 0.85.1's sequential
-tool loop (SDK and CLI/RPC bundle). If install scripts were disabled, run
-`npm run postinstall`. Restart Pi after patching. This affects the Pi installed
-in this checkout, **not a separately installed/global Pi**; use the executable
-below to get the same behavior in other projects. Review the patch on Pi upgrades.
+Capsule uses Pi extension hooks; it does not patch Pi's installed code.
+If upgrading from the old postinstall patch, run `npm ci` to restore clean
+local dependencies, then restart Pi.
 
 ### Sequential short-circuiting
 
-Loading Capsule forces **all tool calls** to run sequentially in both parent
-and worker sessions, even batches containing only ordinary tools such as
-`bash_exec` or `apply_patch`. This overrides Pi's parallel setting and individual
-tool execution modes. The extension sets a process-wide opt-in read by the
-patched SDK/CLI dispatcher; it lasts until process exit. Without that opt-in,
-Pi's normal execution-mode selection is unchanged.
-The first tool error stops execution of the remaining calls in that response.
-Skipped calls receive explicit error results (preserving tool-call IDs) without
-argument preparation, tool-call/result hooks, or tool execution. Lifecycle
-events still report those skipped results. The next model response can
-reassess and retry; earlier filesystem effects are not rolled back.
+Capsule observes failed tool-result messages and blocks subsequent tool calls
+in the same model turn using extension hooks, in both parent and worker sessions.
+Blocked calls receive error results with their original tool-call IDs. Their
+tool bodies do not execute, but argument preparation and other hooks may run;
+invalid or missing tools may still receive Pi's own errors. The failure latch
+resets at the next turn. Earlier filesystem effects are not rolled back.
+
+Capsule serializes tool-call batches in unpatched Pi 0.85.1 by prepending an
+internal `capsule_sequential_barrier` no-op through `message_end`. Its
+`executionMode: "sequential"` makes Pi schedule the entire batch sequentially,
+including tools from other extensions; `bash_exec` and `apply_patch` need no
+changes. The barrier is activated on session/agent start. Text-only replies
+and error, aborted, or truncated responses are left untouched.
+
+The `context` hook removes injected barrier calls and their matching results
+before every LLM request, including after resume. They remain in session
+history but are hidden by the TUI renderer; the internal tool definition remains
+available to the model. This relies on Pi's message replacement and scheduling
+hooks: other extensions must not remove/disable the barrier or replace these
+messages afterward. It does not serialize parallel work inside a tool body.
+Explicit tool allowlists must include `capsule_sequential_barrier`; Capsule
+includes it automatically in its worker SDK allowlist. If activation is denied,
+Capsule blocks tool bodies rather than silently executing in parallel.
 
 Failures include exceptions, invalid arguments, missing tools, blocked calls,
 and results marked `isError`. Capsule also marks unsuccessful `bash_exec`

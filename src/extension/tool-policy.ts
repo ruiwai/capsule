@@ -1,9 +1,15 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { randomUUID } from "node:crypto";
+import { Type } from "typebox";
 
-// Shared with the version-guarded SDK/CLI patch. Symbol.for crosses module
-// copies loaded by Pi's extension loader. Loading Capsule opts this process in,
-// including worker sessions; no environment variable leaks to child processes.
-export const CAPSULE_SEQUENTIAL_TOOLS = Symbol.for("pi-capsule.sequential-tools");
+export const SEQUENTIAL_TOOL = "capsule_sequential_barrier";
+const BARRIER_ID_PREFIX = "capsule-barrier-";
+
+function isInjectedBarrier(name: string, id: string): boolean {
+  return name === SEQUENTIAL_TOOL && id.startsWith(BARRIER_ID_PREFIX);
+}
+
+const renderHiddenBarrier = () => ({ render: () => [], invalidate() {} });
 
 type ToolDetails = {
   outcome?: { exit_code?: number | null; signal?: string | null;
@@ -12,7 +18,68 @@ type ToolDetails = {
 };
 
 export function installToolExecutionPolicy(pi: ExtensionAPI) {
-  (globalThis as Record<symbol, unknown>)[CAPSULE_SEQUENTIAL_TOOLS] = true;
+  pi.registerTool({
+    name: SEQUENTIAL_TOOL, label: "Capsule sequential barrier",
+    description: "Internal Capsule scheduling no-op; do not call directly.",
+    parameters: Type.Object({}), executionMode: "sequential",
+    // Self framing avoids the default tool box and its surrounding padding.
+    renderShell: "self",
+    renderCall: renderHiddenBarrier,
+    renderResult: renderHiddenBarrier,
+    async execute() { return { content: [{ type: "text", text: "ok" }], details: {} }; },
+  });
+  let barrierUnavailable = false;
+  const activate = () => {
+    const tools = pi.getActiveTools();
+    if (!tools.includes(SEQUENTIAL_TOOL)) pi.setActiveTools([...tools, SEQUENTIAL_TOOL]);
+    barrierUnavailable = !pi.getActiveTools().includes(SEQUENTIAL_TOOL);
+  };
+  pi.on("session_start", activate);
+  pi.on("before_agent_start", activate);
+  pi.on("context", event => {
+    // Filter persisted barriers too, so resume does not expose internal calls.
+    return {
+      messages: event.messages
+        .filter(message => !(message.role === "toolResult"
+          && isInjectedBarrier(message.toolName, message.toolCallId)))
+        .map(message => message.role === "assistant" ? {
+          ...message,
+          content: message.content.filter(block => !(block.type === "toolCall"
+            && isInjectedBarrier(block.name, block.id))),
+        } : message),
+    };
+  });
+  // Local to this extension/session, not shared with delegated workers.
+  // This blocks tool bodies, not argument preparation or other extension hooks.
+  // Pi serializes the entire batch when any called tool is sequential.
+  let failedCall: string | undefined;
+  pi.on("turn_start", () => { failedCall = undefined; });
+  pi.on("message_end", event => {
+    const message = event.message;
+    if (message.role === "assistant" && message.stopReason !== "error"
+      && message.stopReason !== "aborted" && message.stopReason !== "length"
+      && message.content.some(block => block.type === "toolCall")
+      && !message.content.some(block => block.type === "toolCall" && block.name === SEQUENTIAL_TOOL)) {
+      // Prepend so the no-op completes before a real failure can latch blocking.
+      // No injection into text-only replies: that would cause endless extra turns.
+      return { message: { ...message, content: [{ type: "toolCall" as const,
+        id: `${BARRIER_ID_PREFIX}${randomUUID()}`, name: SEQUENTIAL_TOOL, arguments: {} }, ...message.content] } };
+    }
+    // Unlike tool_result, finalized messages include validation failures,
+    // missing tools, and calls blocked before execution.
+    if (message.role === "toolResult" && message.isError) {
+      failedCall ??= message.toolCallId;
+    }
+  });
+  pi.on("tool_call", () => {
+    if (barrierUnavailable) {
+      return { block: true, reason: `Capsule requires ${SEQUENTIAL_TOOL} in the tool allowlist. Not executed.` };
+    }
+    if (failedCall !== undefined) {
+      return { block: true, reason: `Skipped: earlier tool call ${failedCall} failed. Not executed; reassess before retrying.` };
+    }
+    return undefined;
+  });
   // Structured negative outcomes are not thrown errors in these custom tools.
   pi.on("tool_result", event => {
     const details = event.details as ToolDetails | undefined;
