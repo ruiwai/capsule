@@ -8,7 +8,7 @@ import { capsuleRenderers } from "./renderer.js";
 import { DELEGATE_CAPSULE_DESCRIPTION, PARENT_CAPSULE_PROMPT } from "../capsule/prompts.js";
 import { installCapsuleFooter } from "./footer.js";
 import type { WorkerTelemetry } from "../capsule/worker.js";
-import { captureParentContext } from "./parent-context.js";
+import { captureParentContext, resolveWorkerPolicy } from "./parent-context.js";
 import { installToolExecutionPolicy } from "./tool-policy.js";
 
 const DEFAULT_CAPSULE_STATE_DIR = join(homedir(), ".pi", "agent", "capsule-sessions");
@@ -123,6 +123,8 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           const toolOverride = process.env.CAPSULE_FLASH_TOOLS?.split(",").map(x => x.trim()).filter(Boolean);
           const settings = SettingsManager.create(ctx.cwd);
           const flashSettings = { ...settings.getGlobalSettings(), ...settings.getProjectSettings() };
+          const workerPolicy = resolveWorkerPolicy(settings.getGlobalSettings() as Record<string, unknown>,
+            settings.getProjectSettings() as Record<string, unknown>, ctx.cwd);
           const model = resolveConfiguredModel(ctx.modelRegistry, selectedFlashModel ?? resolveConfiguredModelSpec(
             flashSettings, process.env.CAPSULE_FLASH_MODEL));
           const thinkingLevel = resolveConfiguredThinkingLevel(
@@ -140,7 +142,7 @@ export default function capsuleExtension(pi: ExtensionAPI) {
           const timeoutMs = Number(process.env.CAPSULE_FLASH_TIMEOUT_MS ?? 300_000);
           if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > MAX_TIMER_MS) throw Error("configuration_required: CAPSULE_FLASH_TIMEOUT_MS must be a representable positive integer");
           const backend = new PiSdkBackend({ cwd: ctx.cwd, stateDir: join(stateRoot, "worker-sessions"),
-            model, thinkingLevel, tools: toolOverride ?? [], parentContext: () => captureParentContext(pi, ctx, toolOverride) });
+            model, thinkingLevel, tools: toolOverride ?? [], parentContext: () => captureParentContext(pi, toolOverride, workerPolicy) });
           const generation = sessionGeneration;
           service = new CapsuleService(backend, { projectRoot: ctx.cwd, stateRoot, timeoutMs,
             timeoutMultiplier: thinkingTimeoutMultiplier(thinkingLevel),

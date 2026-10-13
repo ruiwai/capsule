@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { Type } from "typebox";
 import { YieldParameters, validateYield, type YieldArgs } from "../capsule/contracts.js";
-import { PARENT_CAPSULE_PROMPT, WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
+import { WORKER_CAPSULE_PROMPT } from "../capsule/prompts.js";
 import { installToolExecutionPolicy, isInjectedBarrier, SEQUENTIAL_TOOL } from "./tool-policy.js";
 
 import type { BackendOutcome, CapsuleBackend, TranscriptRecord } from "../capsule/worker.js";
@@ -18,11 +18,11 @@ export const DEFAULT_FLASH_THINKING_LEVEL: FlashThinkingLevel = "off";
 // task's nominal deadline. The public docs describe the effective deadline.
 export const HIGH_THINKING_TIMEOUT_MULTIPLIER = 2;
 export const XHIGH_THINKING_TIMEOUT_MULTIPLIER = 3;
-export type ParentWorkerContext = { systemPrompt: string; extensionPaths: string[]; tools: string[] };
+export type ParentWorkerContext = { sharedInstructions: string; excludedTools?: string[]; extensionPaths: string[]; tools: string[] };
 export type PiBackendOptions = {
   cwd: string; stateDir: string; model: PiModel; tools: string[];
   thinkingLevel?: FlashThinkingLevel;
-  /** Read anew for each delegation so prompt/tool changes are not cached. */
+  /** Read anew for each delegation so active tool changes are not cached. */
   parentContext?: () => ParentWorkerContext;
 };
 
@@ -67,7 +67,7 @@ export function validHandoff(messages: readonly HandoffMessage[], state: WorkerH
 
 /** Worker-only extension factory, exported so its real hook/tool boundary can be tested. */
 export function createWorkerExtension(
-  input: { outputExample: string; jit: Array<{ topic: string; content: string; raw_history: string }>; parentSystemPrompt?: string },
+  input: { jit: Array<{ topic: string; content: string; raw_history: string }>; sharedInstructions?: string },
   state: WorkerHandoffState,
 ): InlineExtension {
   return (pi: ExtensionAPI) => {
@@ -78,12 +78,11 @@ export function createWorkerExtension(
         return { block: true, reason: "Worker already yielded; no further tool execution is allowed." };
       }
     });
-    pi.on("before_agent_start", async event => {
+    pi.on("before_agent_start", async () => {
       state.hooksRan = true;
-      // This factory runs last: prompt-replacing extensions (such as poor) must
-      // not erase inherited instructions or the worker's terminal protocol.
-      const base = (input.parentSystemPrompt ?? event.systemPrompt).replace(PARENT_CAPSULE_PROMPT, "");
-      return { systemPrompt: `${base}\n\n${WORKER_CAPSULE_PROMPT}\n\n# Output example (format only; not a schema or an answer to copy)\n${input.outputExample}` };
+      // Do not inherit parent orchestration or resource/extension prompt overrides.
+      // Tool schemas remain available independently of system-prompt prose.
+      return { systemPrompt: [input.sharedInstructions, WORKER_CAPSULE_PROMPT].filter(Boolean).join("\n\n") };
     });
     pi.registerTool({
       name: "list_lesson_topic", label: "List JIT lesson topics",
@@ -128,7 +127,7 @@ export class PiSdkBackend implements CapsuleBackend {
     const records: TranscriptRecord[] = [];
     const handoff: WorkerHandoffState = { hooksRan: false, duplicate: false };
     const parent = this.options.parentContext?.();
-    const workerExtension = createWorkerExtension({ ...input, parentSystemPrompt: parent?.systemPrompt }, handoff);
+    const workerExtension = createWorkerExtension({ jit: input.jit, sharedInstructions: parent?.sharedInstructions }, handoff);
     let resolveInterrupted!: () => void;
     const interrupted = new Promise<void>(resolve => { resolveInterrupted = resolve; });
     const onInterrupted = () => resolveInterrupted();
@@ -154,10 +153,13 @@ export class PiSdkBackend implements CapsuleBackend {
     if (extensionErrors.length) return early({ kind: "error", records, hooksRan: false,
       notes: `Worker extensions failed to load: ${extensionErrors.map(x => `${x.path}: ${x.error}`).join("; ")}` });
     const manager = SessionManager.create(this.options.cwd, this.options.stateDir);
+    const excludedTools = ["delegate_capsule", ...(parent?.excludedTools ?? [])];
+    const requestedTools = [...new Set([...(parent?.tools ?? this.options.tools).filter(name => !excludedTools.includes(name)),
+      SEQUENTIAL_TOOL, "list_lesson_topic", "fetch_lesson", "yield"])];
     const creating = createAgentSession({ cwd: this.options.cwd, model: this.options.model,
       thinkingLevel: this.options.thinkingLevel ?? DEFAULT_FLASH_THINKING_LEVEL,
-      tools: [...new Set([...(parent?.tools ?? this.options.tools), SEQUENTIAL_TOOL, "list_lesson_topic", "fetch_lesson", "yield"])],
-      excludeTools: ["delegate_capsule"],
+      tools: requestedTools,
+      excludeTools: excludedTools,
       resourceLoader: loader, sessionManager: manager });
     const created = await stage(creating);
     if (!created) {
@@ -168,6 +170,14 @@ export class PiSdkBackend implements CapsuleBackend {
         notes: "Worker session startup did not settle during termination." });
     }
     const { session } = created;
+    const missingTools = requestedTools.filter(name => !session.getActiveToolNames().includes(name));
+    if (missingTools.length) {
+      session.dispose();
+      return early({ kind: "error", records, hooksRan: false,
+        notes: `Worker tools unavailable (check tool providers and extension exclusions): ${missingTools.join(", ")}` });
+    }
+    records.push({ type: "worker_configuration", tools: session.getActiveToolNames(),
+      extensionPaths: parent?.extensionPaths ?? [], excludedTools });
     const publishTelemetry = () => {
       if (!input.onTelemetry) return;
       const stats = session.getSessionStats();
@@ -199,7 +209,8 @@ export class PiSdkBackend implements CapsuleBackend {
       finally { if (timer) clearTimeout(timer); }
     };
     try {
-      const prompt = session.prompt(input.capsule, { expandPromptTemplates: false });
+      const prompt = session.prompt(`${input.capsule}\n\n# Output example (format only; not an answer to copy)\n${input.outputExample}`,
+        { expandPromptTemplates: false });
       await Promise.race([prompt, interrupted]);
       if (input.signal.aborted) {
         abort();

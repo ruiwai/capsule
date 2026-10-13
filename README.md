@@ -138,10 +138,54 @@ overrides both. Invalid values fail before the worker starts. `high` doubles and
 `timeout_s`) to allow for slower reasoning, capped at Node's maximum timer. The
 nominal deadline remains unchanged in tool instructions and UI call summaries.
 
-Flash inherits the parent's effective system instructions and active tools,
-except delegation. File-backed extensions identified by Pi's tool/command
-metadata are reloaded; hook-only and inline extension hooks cannot be cloned.
-`CAPSULE_FLASH_TOOLS` overrides the inherited tool list.
+Flash uses an independent worker prompt, not the parent's effective system
+instructions or goal lifecycle. It discovers applicable `AGENTS.md`, relevant
+project docs/contracts, and optional JIT lessons itself. Assignments should carry
+intent, scope, undiscoverable decisions/permissions, and acceptance criteria—not
+copies of project documentation. Output examples are part of the assignment.
+
+Configure worker isolation in project `.pi/settings.json` or global
+`~/.pi/agent/settings.json` (merge with existing settings):
+
+```json
+{
+  "capsule": {
+    "excludedTools": ["create_goal", "get_goal"],
+    "excludedExtensions": ["pi-goal-x"],
+    "sharedInstructions": "Preserve unrelated work and protect credentials."
+  }
+}
+```
+
+Project fields override global fields within `capsule`; arrays replace, not append.
+By default, the `pi-goal-x` package (its extensions, hooks, and inherited tools) is
+excluded; no tool-name exclusions or additional shared instructions are needed.
+Extension exclusions accept package names (matched against the nearest owning
+`package.json`) or exact entrypoint paths (absolute, `~/`, or `./`/`../` relative
+to worker cwd). Prefix local filenames with `./` to distinguish them from package
+names. Globs are not supported. An explicit `excludedExtensions: []` clears the
+default; a custom list replaces it, so include `pi-goal-x` to retain its exclusion.
+Restart Pi after changing settings.
+
+Active parent tools are inherited, minus delegation, denied tools, and tools from
+excluded extensions. `CAPSULE_FLASH_TOOLS` replaces that selection with an explicit
+comma-separated list; tool denials still win. An explicit request for a tool whose
+provider is excluded/unavailable fails before a model request. Required worker
+tools (`yield`, both JIT tools, and the sequencing barrier) cannot be denied.
+
+File-backed parent extensions identified by Pi's tool/command metadata are still
+reloaded unless excluded; hook-only and inline extensions cannot be cloned. A tool
+ban does **not** disable its extension hooks: exclude the extension too when needed.
+New parent tools/extensions remain inherited unless denied; this is not a sandbox.
+Denials are runtime configuration, not extra tool-instruction text.
+Worker transcripts include selected tools, extension paths, and tool exclusions
+in a `worker_configuration` record for debugging (without extra prompt logging).
+
+Migration: parent prompt customizations, SYSTEM.md/APPEND_SYSTEM.md overrides, and
+extension-injected prompt prose are not copied into the worker. Put mandatory
+shared constraints in `capsule.sharedInstructions` or applicable `AGENTS.md` files;
+include task-specific permissions in the assignment. Tool schemas remain exposed
+independently of system-prompt prose.
 
 Capsule state defaults to `~/.pi/agent/capsule-sessions/session-<Pi-session-ID>/`,
 with JIT in `jit.json`, retained JSONL transcripts in `episodes/`, and raw Pi

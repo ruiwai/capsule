@@ -28,13 +28,18 @@ The original design references remain useful:
   `before_agent_start` delegation policy. The tool description owns example
   calls; parameter descriptions own the task-contract fields.
 - Worker: a fresh SDK session using `DefaultResourceLoader`, with selected
-  file-backed parent extensions explicitly loaded. Automatic extension discovery,
-  skills, templates, and context files are disabled. Pi's normal
-  SYSTEM.md/APPEND_SYSTEM.md discovery still applies; those overrides are not
-  disabled by `noContextFiles`.
-- Worker hook: append bounded-execution/reporting guidance and the verbatim output
-  example once. Register `list_lesson_topic` and `fetch_lesson` for explicit,
-  model-selected access to fresh project JIT. The capsule is the user message, not
+  file-backed parent extensions explicitly loaded, minus `capsule.excludedExtensions`
+  (default: the `pi-goal-x` package, matched by owning package name rather than install path).
+  Automatic extension discovery, skills, templates, and context files are disabled.
+  Tool denials (`capsule.excludedTools`) apply even to `CAPSULE_FLASH_TOOLS` overrides.
+  Excluding an extension also removes its tools from default inheritance; explicit
+  requests for unavailable tools fail before a provider request.
+- Worker hook: replace the prompt with explicit `capsule.sharedInstructions` and
+  bounded-execution/context-discovery guidance. Do not copy the parent prompt or
+  retain SYSTEM.md/APPEND_SYSTEM.md or extension prompt overrides. Workers read
+  applicable AGENTS.md and relevant docs/contracts themselves. Register
+  `list_lesson_topic` and `fetch_lesson` for optional model-selected access to fresh
+  project JIT. The capsule and output example form the user message, not
   repeated in the system prompt. The `yield` tool alone owns terminal-call rules;
   its schema owns the completed/blocked envelope.
 

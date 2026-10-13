@@ -239,7 +239,7 @@ describe("parent/child tool separation", () => {
     expect(resolveConfiguredThinkingLevel(globalSettings)).toBe("medium");
   });
 
-  it("keeps the effective parent prompt when a preceding extension replaces it", async () => {
+  it("keeps only explicit shared instructions when a preceding extension replaces the prompt", async () => {
     const project = root();
     const replacing = join(project, "poor-like.mjs");
     await writeFile(replacing, `export default function poorLike(pi) {
@@ -247,9 +247,8 @@ describe("parent/child tool separation", () => {
     }\n`);
     const state = { hooksRan: false, duplicate: false };
     const worker = createWorkerExtension({
-      outputExample: "WORKER_OUTPUT_EXAMPLE",
       jit: [],
-      parentSystemPrompt: `BASE_PARENT\n\n${PARENT_CAPSULE_PROMPT}`,
+      sharedInstructions: "SHARED_SAFETY",
     }, state);
     const loader = new DefaultResourceLoader({ cwd: project, agentDir: getAgentDir(),
       additionalExtensionPaths: [replacing], extensionFactories: [worker], noExtensions: true,
@@ -266,15 +265,15 @@ describe("parent/child tool separation", () => {
         if (result?.systemPrompt !== undefined) effective = result.systemPrompt;
       }
     }
-    expect(effective).toContain("BASE_PARENT");
+    expect(effective).toContain("SHARED_SAFETY");
+    expect(effective).not.toContain("BASE_PARENT");
     expect(effective).not.toContain(PARENT_CAPSULE_PROMPT);
     expect(effective).toContain(WORKER_CAPSULE_PROMPT);
-    expect(effective).toContain("WORKER_OUTPUT_EXAMPLE");
     expect(effective).not.toContain("POOR_REPLACED_PROMPT");
     expect(state.hooksRan).toBe(true);
   });
 
-  it("refreshes parent prompt, active tools, and extension source paths for each worker run", async () => {
+  it("refreshes active tools and extension paths without inheriting parent prompts", async () => {
     const tools: any[] = [], hooks = new Map<string, any>();
     let prompt = "PARENT_PROMPT_ONE", active = ["read", "delegate_capsule"];
     let configured = [
@@ -315,9 +314,9 @@ describe("parent/child tool separation", () => {
       await delegate.execute("two", { capsule: "second", output_example: "x" }, undefined, undefined, ctx);
       const parents = (run.mock.instances[0] as any).__parents;
       expect(parents).toHaveLength(2);
-      expect(parents[0]).toEqual({ systemPrompt: "PARENT_PROMPT_ONE",
+      expect(parents[0]).toEqual({ sharedInstructions: "", excludedTools: [],
         extensionPaths: ["/tmp/read-extension.mjs", "/tmp/command-extension.mjs"], tools: ["read"] });
-      expect(parents[1]).toEqual({ systemPrompt: "PARENT_PROMPT_TWO",
+      expect(parents[1]).toEqual({ sharedInstructions: "", excludedTools: [],
         extensionPaths: ["/tmp/bash-extension.mjs", "/tmp/new-command-extension.mjs"], tools: ["bash", "write"] });
     } finally {
       run.mockRestore();
@@ -521,16 +520,14 @@ describe("parent/child tool separation", () => {
   });
   it("lets Flash list and fetch JIT without injecting lesson text", async () => {
     const tools: any[] = [], hooks = new Map<string, any>(), state = { hooksRan: false, duplicate: false };
-    const extension = createWorkerExtension({ outputExample: "PLAIN EXAMPLE", jit: [
+    const extension = createWorkerExtension({ jit: [
       { topic: "project-tests", content: lesson, raw_history: "/project/episode.jsonl" },
       { topic: "alpha-setup", content: "another complete lesson", raw_history: "/project/earlier.jsonl" },
     ] }, state);
     await (extension as any)({ registerTool: (tool: any) => tools.push(tool), on: (name: string, handler: any) => hooks.set(name, handler) });
     const injected = await hooks.get("before_agent_start")({ systemPrompt: "base" });
-    expect(injected.systemPrompt).toContain("PLAIN EXAMPLE");
     expect(injected.systemPrompt).not.toContain(lesson);
     expect(injected.systemPrompt).not.toContain("another complete lesson");
-    expect(injected.systemPrompt.split("PLAIN EXAMPLE")).toHaveLength(2);
     expect(injected.systemPrompt).toContain(WORKER_CAPSULE_PROMPT);
     expect(injected.systemPrompt).toContain("Return your report through the yield tool, not a plain-text final answer");
     expect(injected.systemPrompt).toContain("verified procedures useful to a future independently specified task");

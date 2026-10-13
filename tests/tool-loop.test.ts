@@ -184,7 +184,7 @@ it.each(["parent", "worker"])("%s plugin installs local policy hooks, not a para
   const hooks = policyHooks();
   if (role === "parent") capsuleExtension(hooks.pi);
   else {
-    const worker = createWorkerExtension({ outputExample: "", jit: [] }, { hooksRan: false, duplicate: false });
+    const worker = createWorkerExtension({ jit: [] }, { hooksRan: false, duplicate: false });
     await (typeof worker === "function" ? worker : worker.factory)(hooks.pi);
   }
   for (const event of ["turn_start", "message_end", "tool_call", "tool_result"]) {
